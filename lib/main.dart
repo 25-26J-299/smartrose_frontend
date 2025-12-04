@@ -10,11 +10,11 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final AppConfigState appConfigState = AppConfigState();
   await AppConfig.init(appConfigState: appConfigState);
-  runApp(MyApp(appConfigState: appConfigState));
+  runApp(SmartRoseApp(appConfigState: appConfigState));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({required this.appConfigState, super.key});
+class SmartRoseApp extends StatelessWidget {
+  const SmartRoseApp({required this.appConfigState, super.key});
 
   final AppConfigState appConfigState;
 

@@ -4,7 +4,7 @@ import '../features/disease/screens/disease_home_screen.dart';
 import '../features/freshness/screens/freshness_home_screen.dart';
 import '../features/nutrition/screens/nutrition_home_screen.dart';
 import '../features/stress/screens/stress_home_screen.dart';
-import '../screens/home_screen.dart';
+import '../screens/bottom_navigation_shell.dart';
 import '../screens/settings_screen.dart';
 
 class AppRoutes {
@@ -16,7 +16,7 @@ class AppRoutes {
   static const String disease = '/disease';
 
   static final Map<String, WidgetBuilder> routes = <String, WidgetBuilder>{
-    home: (BuildContext context) => const HomeScreen(),
+    home: (BuildContext context) => const BottomNavigationShell(),
     settings: (BuildContext context) => const SettingsScreen(),
     freshness: (BuildContext context) => const FreshnessHomeScreen(),
     nutrition: (BuildContext context) => const NutritionHomeScreen(),
