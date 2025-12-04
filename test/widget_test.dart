@@ -11,14 +11,19 @@ import 'package:smartrose_frontend/main.dart';
 import 'package:smartrose_frontend/core/config/app_config.dart';
 
 void main() {
-  testWidgets('Home screen renders dashboard cards', (WidgetTester tester) async {
+  testWidgets('Login screen renders correctly', (WidgetTester tester) async {
     final AppConfigState appConfigState = AppConfigState();
     await AppConfig.init(appConfigState: appConfigState);
 
-    await tester.pumpWidget(MyApp(appConfigState: appConfigState));
+    await tester.pumpWidget(SmartRoseApp(appConfigState: appConfigState));
+    await tester.pumpAndSettle();
 
-    expect(find.text('SmartRose Dashboard'), findsOneWidget);
-    expect(find.text('Freshness Monitoring'), findsOneWidget);
-    expect(find.text('Nutrition Monitoring'), findsOneWidget);
+    // Verify login screen elements
+    expect(find.text('SmartRose'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Create an Account'), findsOneWidget);
   });
 }

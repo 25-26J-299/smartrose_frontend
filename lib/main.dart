@@ -27,7 +27,7 @@ class SmartRoseApp extends StatelessWidget {
       child: MaterialApp(
         title: 'SmartRose',
         theme: AppTheme.light,
-        initialRoute: AppRoutes.home,
+        initialRoute: AppRoutes.login,
         routes: AppRoutes.routes,
       ),
     );
