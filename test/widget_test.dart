@@ -5,26 +5,20 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:smartrose_frontend/main.dart';
+import 'package:smartrose_frontend/core/config/app_config.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('Home screen renders dashboard cards', (WidgetTester tester) async {
+    final AppConfigState appConfigState = AppConfigState();
+    await AppConfig.init(appConfigState: appConfigState);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.pumpWidget(MyApp(appConfigState: appConfigState));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('SmartRose Dashboard'), findsOneWidget);
+    expect(find.text('Freshness Monitoring'), findsOneWidget);
+    expect(find.text('Nutrition Monitoring'), findsOneWidget);
   });
 }
