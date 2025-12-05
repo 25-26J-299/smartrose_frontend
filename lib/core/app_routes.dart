@@ -7,13 +7,18 @@ import '../features/stress/screens/stress_home_screen.dart';
 import '../screens/bottom_navigation_shell.dart';
 import '../screens/login_screen.dart';
 import '../screens/register_screen.dart';
+import '../screens/auth/role_selection_page.dart';
+import '../screens/profile/edit_profile_screen.dart';
 import '../screens/registration_screen.dart';
 import '../screens/settings_screen.dart';
 
 class AppRoutes {
+  static const String root = '/';
   // Authentication routes
   static const String login = '/login';
   static const String register = '/register';
+  static const String roleSelection = '/role-selection';
+  static const String profileEdit = '/profile-edit';
 
   // Main routes
   static const String home = '/home';
@@ -26,13 +31,28 @@ class AppRoutes {
   static const String stress = '/stress';
   static const String disease = '/disease';
 
+  static final Set<String> _protectedRoutes = <String>{
+    root,
+    home,
+    registration,
+    settings,
+    freshness,
+    nutrition,
+    stress,
+    disease,
+    roleSelection,
+    profileEdit,
+  };
+
   static final Map<String, WidgetBuilder> routes = <String, WidgetBuilder>{
     // Authentication routes
     login: (BuildContext context) => const LoginScreen(),
     register: (BuildContext context) => const RegisterScreen(),
+    roleSelection: (BuildContext context) => const RoleSelectionPage(),
+    profileEdit: (BuildContext context) => const EditProfileScreen(),
 
     // Main routes (both / and /home point to home)
-    '/': (BuildContext context) => const BottomNavigationShell(),
+    root: (BuildContext context) => const BottomNavigationShell(),
     home: (BuildContext context) => const BottomNavigationShell(),
 
     // Legacy/other routes
@@ -43,4 +63,30 @@ class AppRoutes {
     stress: (BuildContext context) => const StressHomeScreen(),
     disease: (BuildContext context) => const DiseaseHomeScreen(),
   };
+
+  static Route<dynamic> onGenerateRoute(
+    RouteSettings settings,
+    bool isAuthenticated,
+  ) {
+    final String requestedRoute = settings.name ?? login;
+    final bool requiresAuth = _protectedRoutes.contains(requestedRoute);
+
+    String resolvedRoute = requestedRoute;
+    if (!isAuthenticated && requiresAuth) {
+      resolvedRoute = login;
+    } else if (isAuthenticated && requestedRoute == login) {
+      resolvedRoute = home;
+    }
+
+    final WidgetBuilder? builder = routes[resolvedRoute];
+    final WidgetBuilder loginBuilder = routes[login]!;
+
+    return MaterialPageRoute<dynamic>(
+      settings: RouteSettings(
+        name: resolvedRoute,
+        arguments: settings.arguments,
+      ),
+      builder: builder ?? loginBuilder,
+    );
+  }
 }

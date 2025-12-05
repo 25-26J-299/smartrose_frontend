@@ -15,20 +15,18 @@ class BottomNavigationShell extends StatefulWidget {
 
 class _BottomNavigationShellState extends State<BottomNavigationShell> {
   int _currentIndex = 0;
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-
   final List<Widget> _screens = const <Widget>[
     DashboardScreen(),
     InsightsScreen(),
-    MenuScreen(),
     NotificationScreen(),
+    MenuScreen(),
   ];
 
   final List<String> _titles = const <String>[
     'Dashboard',
     'Insights',
-    'Menu',
     'Notifications',
+    'Menu',
   ];
 
   String _getAppBarTitle() {
@@ -36,7 +34,9 @@ class _BottomNavigationShellState extends State<BottomNavigationShell> {
     final ModalRoute<dynamic>? route = ModalRoute.of(context);
     final String? routeName = route?.settings.name;
 
-    if (routeName != null && routeName != AppRoutes.home && routeName != '/') {
+    if (routeName != null &&
+        routeName != AppRoutes.home &&
+        routeName != AppRoutes.root) {
       switch (routeName) {
         case AppRoutes.freshness:
           return 'Freshness Monitoring';
@@ -59,38 +59,12 @@ class _BottomNavigationShellState extends State<BottomNavigationShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(_getAppBarTitle())),
-      body: Navigator(
-        key: _navigatorKey,
-        onGenerateRoute: (RouteSettings settings) {
-          return MaterialPageRoute<Widget>(
-            settings: settings,
-            builder: (BuildContext context) {
-              // If it's the home route, show the current tab screen
-              if (settings.name == AppRoutes.home || settings.name == '/') {
-                return IndexedStack(index: _currentIndex, children: _screens);
-              }
-              // For other routes, use AppRoutes but wrap to preserve bottom nav
-              final WidgetBuilder? builder = AppRoutes.routes[settings.name];
-              if (builder != null) {
-                // Return the screen - it will be displayed above the bottom nav
-                return builder(context);
-              }
-              // Fallback to current tab screen
-              return IndexedStack(index: _currentIndex, children: _screens);
-            },
-          );
-        },
-        initialRoute: AppRoutes.home,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (int index) {
           setState(() {
             _currentIndex = index;
-          });
-          // Pop to home when switching tabs
-          _navigatorKey.currentState?.popUntil((Route<dynamic> route) {
-            return route.settings.name == AppRoutes.home || route.isFirst;
           });
         },
         destinations: const <Widget>[
@@ -104,15 +78,16 @@ class _BottomNavigationShellState extends State<BottomNavigationShell> {
             selectedIcon: Icon(Icons.analytics),
             label: 'Insights',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.menu),
-            selectedIcon: Icon(Icons.menu),
-            label: 'Menu',
-          ),
+          
           NavigationDestination(
             icon: Icon(Icons.notifications_outlined),
             selectedIcon: Icon(Icons.notifications),
             label: 'Notifications',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.menu),
+            selectedIcon: Icon(Icons.menu),
+            label: 'Menu',
           ),
         ],
       ),

@@ -1,0 +1,133 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+
+import '../models/user.dart';
+
+/// Simple container for auth responses.
+class AuthResult {
+  AuthResult({required this.user, required this.token});
+
+  final User user;
+  final String token;
+}
+
+class AuthService {
+  AuthService({
+    http.Client? client,
+    FlutterSecureStorage? storage,
+    String? baseUrl,
+  })  : _client = client ?? http.Client(),
+        _storage = storage ?? const FlutterSecureStorage(),
+        _baseUrl = baseUrl ??
+            const String.fromEnvironment(
+              'SMARTROSE_API_BASE',
+              defaultValue:
+                  kIsWeb ? 'http://localhost:8000/api/v1' : 'http://10.0.2.2:8000/api/v1',
+            );
+
+  final http.Client _client;
+  final FlutterSecureStorage _storage;
+  final String _baseUrl;
+  static const String _tokenKey = 'smartrose_access_token';
+
+  Uri _uri(String path) => Uri.parse('$_baseUrl$path');
+
+  Future<AuthResult?> register(
+    String name,
+    String email,
+    String password,
+  ) async {
+    final http.Response response = await _client.post(
+      _uri('/auth/register'),
+      headers: <String, String>{'Content-Type': 'application/json'},
+      body: jsonEncode(
+        <String, dynamic>{
+          'name': name,
+          'email': email,
+          'password': password,
+        },
+      ),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final Map<String, dynamic> body =
+          jsonDecode(response.body) as Map<String, dynamic>;
+      final User user = User.fromJson(body['user'] as Map<String, dynamic>);
+      final String token = body['access_token'] as String;
+      await persistToken(token);
+      return AuthResult(user: user, token: token);
+    }
+    return null;
+  }
+
+  Future<AuthResult?> login(String email, String password) async {
+    final http.Response response = await _client.post(
+      _uri('/auth/login'),
+      headers: <String, String>{'Content-Type': 'application/json'},
+      body: jsonEncode(
+        <String, dynamic>{
+          'email': email,
+          'password': password,
+        },
+      ),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final Map<String, dynamic> body =
+          jsonDecode(response.body) as Map<String, dynamic>;
+      final User user = User.fromJson(body['user'] as Map<String, dynamic>);
+      final String token = body['access_token'] as String;
+      await persistToken(token);
+      return AuthResult(user: user, token: token);
+    }
+
+    return null;
+  }
+
+  Future<User?> fetchProfile(String token) async {
+    final http.Response response = await _client.get(
+      _uri('/auth/me'),
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final Map<String, dynamic> body =
+          jsonDecode(response.body) as Map<String, dynamic>;
+      return User.fromJson(body['user'] as Map<String, dynamic>);
+    }
+    return null;
+  }
+
+  Future<AuthResult?> updateRoles(List<String> roles, String token) async {
+    final http.Response response = await _client.patch(
+      _uri('/auth/update-roles'),
+      headers: <String, String>{
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(<String, dynamic>{'roles': roles}),
+    );
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final Map<String, dynamic> body =
+          jsonDecode(response.body) as Map<String, dynamic>;
+      final User user = User.fromJson(body['user'] as Map<String, dynamic>);
+      final String newToken = body['access_token'] as String;
+      await persistToken(newToken);
+      return AuthResult(user: user, token: newToken);
+    }
+    return null;
+  }
+
+  Future<String?> loadToken() => _storage.read(key: _tokenKey);
+
+  Future<void> persistToken(String token) =>
+      _storage.write(key: _tokenKey, value: token);
+
+  Future<void> clearToken() => _storage.delete(key: _tokenKey);
+}
+

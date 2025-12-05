@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../core/app_routes.dart';
+import '../core/auth/auth_state.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -62,17 +64,34 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future<void>.delayed(const Duration(seconds: 1));
+    final AuthState authState = context.read<AuthState>();
+    final bool success = await authState.login(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
 
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
-      // Navigate to home screen on successful login
-      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+    if (!mounted) {
+      return;
     }
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (!success) {
+      final String message =
+          authState.errorMessage ?? 'Invalid credentials. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    Navigator.of(context).pushReplacementNamed(AppRoutes.home);
   }
 
   @override

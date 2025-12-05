@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../core/app_routes.dart';
+import '../core/auth/auth_state.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -88,25 +90,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isLoading = true;
     });
 
-    // Simulate API call
-    await Future<void>.delayed(const Duration(seconds: 1));
+    final authState = context.read<AuthState>();
+    final bool success = await authState.register(
+      _fullNameController.text.trim(),
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
 
     if (mounted) {
       setState(() {
         _isLoading = false;
       });
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Account created successfully!'),
-          backgroundColor: Theme.of(context).colorScheme.primary,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-
-      // Navigate back to login screen
-      Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Account created! Select your roles.'),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.of(context)
+            .pushReplacementNamed(AppRoutes.roleSelection);
+      } else {
+        final String message =
+            authState.errorMessage ?? 'Registration failed. Please try again.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
