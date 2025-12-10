@@ -1,65 +1,173 @@
+// File: smartrose_frontend/lib/screens/home_screen.dart
+
+// Purpose: Display INM sensor readings
+
 import 'package:flutter/material.dart';
 
-import '../core/app_routes.dart';
+import '../services/inm_service.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
-  static final List<_DashboardEntry> _entries = <_DashboardEntry>[
-    _DashboardEntry(
-      title: 'Freshness Monitoring',
-      subtitle: 'Track bloom quality with live freshness insights.',
-      icon: Icons.local_florist,
-      route: AppRoutes.freshness,
-    ),
-    _DashboardEntry(
-      title: 'Nutrition Monitoring',
-      subtitle: 'Review nutrient balance and fertilizer guidance.',
-      icon: Icons.eco,
-      route: AppRoutes.nutrition,
-    ),
-    _DashboardEntry(
-      title: 'Stress Monitoring',
-      subtitle: 'Detect environmental stressors early.',
-      icon: Icons.monitor_heart,
-      route: AppRoutes.stress,
-    ),
-    _DashboardEntry(
-      title: 'Disease Detection',
-      subtitle: 'Identify disease risks with ML-assisted insights.',
-      icon: Icons.bug_report,
-      route: AppRoutes.disease,
-    ),
-  ];
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final INMService _inmService = INMService();
+  List<Map<String, dynamic>> readings = [];
+  bool isLoading = true;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSensorData();
+  }
+
+  Future<void> _loadSensorData() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    final result = await _inmService.fetchSensorReadings();
+
+    setState(() {
+      isLoading = false;
+      if (result['success'] == true) {
+        readings = List<Map<String, dynamic>>.from(result['data']);
+        errorMessage = null;
+      } else {
+        readings = [];
+        errorMessage = result['error'] ?? 'Unknown error occurred';
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SmartRose Dashboard'),
+      appBar: AppBar(title: const Text('INM Sensor Readings')),
+      body: _buildBody(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _loadSensorData,
+        child: const Icon(Icons.refresh),
       ),
-      body: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final bool isWide = constraints.maxWidth >= 700;
-          final bool isUltraWide = constraints.maxWidth >= 1100;
-          final int crossAxisCount = isUltraWide
-              ? 3
-              : isWide
-                  ? 2
-                  : 1;
+    );
+  }
 
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: GridView.count(
-              crossAxisCount: crossAxisCount,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: isWide ? 1.4 : 1.1,
-              children: _entries
-                  .map(
-                    (_DashboardEntry entry) => _DashboardCard(entry: entry),
-                  )
-                  .toList(),
+  Widget _buildBody() {
+    // Loading state
+    if (isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Loading sensor data...'),
+          ],
+        ),
+      );
+    }
+
+    // Error state
+    if (errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              const Text(
+                'Failed to load sensor data',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '💡 Tips:\n'
+                '• Make sure your backend is running at localhost:8000\n'
+                '• Check if CORS is enabled on your backend\n'
+                '• Verify the API endpoint is correct',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadSensorData,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Empty state
+    if (readings.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.sensors_off, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            const Text(
+              'No sensor readings available',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'There are no INM sensor readings yet.\nTry adding some data to your backend.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadSensorData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Data state
+    return RefreshIndicator(
+      onRefresh: _loadSensorData,
+      child: ListView.builder(
+        itemCount: readings.length,
+        itemBuilder: (context, index) {
+          final reading = readings[index];
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.sensors),
+              ),
+              title: Text('Sensor: ${reading['sensor_id'] ?? 'N/A'}'),
+              subtitle: Text(
+                'Temp: ${reading['temperature'] ?? 'N/A'}°C\n'
+                'Humidity: ${reading['humidity'] ?? 'N/A'}%\n'
+                'Soil Moisture: ${reading['soil_moisture'] ?? 'N/A'}%',
+              ),
+              trailing: reading['timestamp'] != null
+                  ? Text(
+                      '${DateTime.tryParse(reading['timestamp'])?.toLocal() ?? reading['timestamp']}',
+                      style: const TextStyle(fontSize: 12),
+                    )
+                  : null,
+              isThreeLine: true,
             ),
           );
         },
@@ -67,86 +175,3 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
-
-class _DashboardEntry {
-  const _DashboardEntry({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.route,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final String route;
-}
-
-class _DashboardCard extends StatelessWidget {
-  const _DashboardCard({required this.entry});
-
-  final _DashboardEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-
-    return Card(
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      child: InkWell(
-        onTap: () => Navigator.of(context).pushNamed(entry.route),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Icon(
-                entry.icon,
-                size: 40,
-                color: scheme.primary,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                entry.title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Text(
-                  entry.subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: FilledButton.icon(
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(entry.route),
-                  icon: const Icon(Icons.arrow_forward),
-                  label: const Text('Open'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-

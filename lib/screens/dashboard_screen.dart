@@ -8,6 +8,12 @@ class DashboardScreen extends StatelessWidget {
 
   static final List<_DashboardEntry> _entries = <_DashboardEntry>[
     _DashboardEntry(
+      title: 'INM Sensors',
+      subtitle: 'View real-time sensor readings for temperature, humidity & soil.',
+      icon: Icons.sensors,
+      route: AppRoutes.inmSensors,
+    ),
+    _DashboardEntry(
       title: 'Freshness Monitoring',
       subtitle: 'Track bloom quality with live freshness insights.',
       icon: Icons.local_florist,
