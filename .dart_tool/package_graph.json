@@ -13,7 +13,8 @@
         "flutter_secure_storage",
         "http",
         "intl",
-        "provider"
+        "provider",
+        "syncfusion_flutter_charts"
       ],
       "devDependencies": [
         "flutter_lints",
@@ -42,6 +43,16 @@
         "stack_trace",
         "stream_channel",
         "test_api",
+        "vector_math"
+      ]
+    },
+    {
+      "name": "syncfusion_flutter_charts",
+      "version": "31.2.18",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "syncfusion_flutter_core",
         "vector_math"
       ]
     },
@@ -197,6 +208,14 @@
         "stream_channel",
         "string_scanner",
         "term_glyph"
+      ]
+    },
+    {
+      "name": "syncfusion_flutter_core",
+      "version": "31.2.18",
+      "dependencies": [
+        "flutter",
+        "vector_math"
       ]
     },
     {
