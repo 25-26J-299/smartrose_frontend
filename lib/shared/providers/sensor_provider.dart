@@ -6,6 +6,7 @@ import '../models/sensor_reading.dart';
 import '../services/sensor_api.dart';
 import '../utils/collection_extensions.dart';
 
+// Start of EOSM
 class SensorProvider extends ChangeNotifier {
   SensorProvider({SensorApi? api, this.basestationId = 'basestation_01'})
       : _api = api ?? SensorApi(defaultBasestationId: basestationId);
@@ -138,3 +139,4 @@ class SensorProvider extends ChangeNotifier {
     super.dispose();
   }
 }
+// End of EOSM

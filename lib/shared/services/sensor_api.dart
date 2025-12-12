@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/sensor_reading.dart';
 import 'api_service.dart';
 
+// Start of EOSM
 class SensorApi {
   SensorApi({ApiService? apiService, this.defaultBasestationId = 'basestation_01'})
       : _apiService = apiService ?? ApiService();
@@ -28,7 +29,9 @@ class SensorApi {
       'limit': '$limit',
       if (sensorId != null) 'basestationId': sensorId,
     };
+    // Start of EOSM
     final Uri uri = _apiService.uri('/sensor-data/', query: query);
+    // End of EOSM
     try {
       final http.Response response = await _apiService.getUri(uri);
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -54,5 +57,6 @@ class SensorApi {
     return <dynamic>[];
   }
 }
+// End of EOSM
 
 

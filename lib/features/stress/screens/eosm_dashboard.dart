@@ -10,14 +10,14 @@ import '../../../shared/widgets/snapshot_card.dart';
 import '../../../shared/widgets/stress_gauge.dart';
 import '../../../shared/widgets/trend_chart.dart';
 
-class StressDashboardScreen extends StatefulWidget {
-  const StressDashboardScreen({super.key});
+class EosmDashboardScreen extends StatefulWidget {
+  const EosmDashboardScreen({super.key});
 
   @override
-  State<StressDashboardScreen> createState() => _StressDashboardScreenState();
+  State<EosmDashboardScreen> createState() => _EosmDashboardScreenState();
 }
 
-class _StressDashboardScreenState extends State<StressDashboardScreen> {
+class _EosmDashboardScreenState extends State<EosmDashboardScreen> {
   late final SensorProvider _provider;
 
   @override
@@ -726,4 +726,5 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
 

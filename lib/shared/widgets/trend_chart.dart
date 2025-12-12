@@ -8,6 +8,7 @@ class TrendPoint {
   final double value;
 }
 
+// Start of EOSM
 class TrendChart extends StatelessWidget {
   const TrendChart({
     required this.title,
@@ -89,4 +90,5 @@ class TrendChart extends StatelessWidget {
     );
   }
 }
+// End of EOSM
 

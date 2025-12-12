@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/sensor_reading.dart';
 
+// Start of EOSM
 class SensorTile extends StatelessWidget {
   const SensorTile({required this.reading, super.key});
 
@@ -110,3 +111,4 @@ class SensorTile extends StatelessWidget {
     );
   }
 }
+// End of EOSM

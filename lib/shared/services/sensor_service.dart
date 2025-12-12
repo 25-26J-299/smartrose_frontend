@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/sensor_data.dart';
 import 'api_service.dart';
 
+// Start of EOSM
 class SensorService {
   SensorService({ApiService? apiService})
       : _apiService = apiService ?? ApiService();
@@ -12,10 +13,12 @@ class SensorService {
 
   Future<List<SensorReading>> fetchLatestReadings({int limit = 20}) async {
     try {
+      // Start of EOSM
       final http.Response response = await _apiService.get(
-        '/sensor-data',
+        '/sensor-data/',
         query: <String, String>{'limit': '$limit'},
       );
+      // End of EOSM
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic>? body = _apiService.decodeJson(response);
@@ -96,3 +99,4 @@ class SensorService {
     ];
   }
 }
+// End of EOSM

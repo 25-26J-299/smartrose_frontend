@@ -8,6 +8,7 @@ class GaugeSegment {
   final Color color;
 }
 
+// Start of EOSM
 class StressGauge extends StatelessWidget {
   const StressGauge({
     required this.title,
@@ -145,5 +146,6 @@ class _GaugePainter extends CustomPainter {
         oldDelegate.segments != segments;
   }
 }
+// End of EOSM
 
 

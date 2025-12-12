@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// Start of EOSM
+
 enum StressLevel { optimal, warning, critical }
 
 class StressStatus {
@@ -9,6 +11,8 @@ class StressStatus {
   final Color color;
   final String? label;
 }
+
+// End of EOSM
 
 class SensorReading {
   SensorReading({
