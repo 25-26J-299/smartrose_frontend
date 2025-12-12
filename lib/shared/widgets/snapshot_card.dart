@@ -23,7 +23,7 @@ class SnapshotCard extends StatelessWidget {
     final Color resolved = color ?? scheme.primary;
     return Card(
       elevation: 0,
-      color: scheme.surfaceVariant.withOpacity(0.35),
+      color: scheme.surfaceContainerHighest.withOpacity(0.35),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: Padding(
         padding: const EdgeInsets.all(14),

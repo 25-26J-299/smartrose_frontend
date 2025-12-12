@@ -48,7 +48,7 @@ class SensorReading {
   DateTime get displayTime => receivedAt ?? timestamp;
 
   factory SensorReading.fromJson(Map<String, dynamic> json) {
-    DateTime? _parseDate(dynamic value) {
+    DateTime? parseDate(dynamic value) {
       if (value == null) return null;
       if (value is int) {
         // seconds epoch
@@ -68,13 +68,13 @@ class SensorReading {
       return null;
     }
 
-    double? _toDouble(dynamic value) {
+    double? toDouble(dynamic value) {
       if (value == null) return null;
       if (value is num) return value.toDouble();
       return double.tryParse(value.toString());
     }
 
-    int? _toInt(dynamic value) {
+    int? toInt(dynamic value) {
       if (value == null) return null;
       if (value is int) return value;
       if (value is num) return value.toInt();
@@ -82,7 +82,7 @@ class SensorReading {
     }
 
     final DateTime ts =
-        _parseDate(json['timestamp']) ?? DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+        parseDate(json['timestamp']) ?? DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
 
     return SensorReading(
       id: (json['id'] ?? json['_id'])?.toString(),
@@ -100,15 +100,15 @@ class SensorReading {
               json['greenhouseid'])
           ?.toString(),
       timestamp: ts,
-      receivedAt: _parseDate(json['received_at'] ?? json['receivedAt']),
-      temperature: _toDouble(json['temperature']) ?? 0,
-      humidity: _toDouble(json['humidity']) ?? 0,
-      uvRaw: _toInt(json['uv_raw'] ?? json['uvRaw']),
-      uvVoltage: _toDouble(json['uv_voltage'] ?? json['uvVoltage']),
-      soilRaw: _toInt(json['soil_raw'] ?? json['soilRaw']),
-      soilVoltage: _toDouble(json['soil_voltage'] ?? json['soilVoltage']),
-      mqRaw: _toInt(json['mq_raw'] ?? json['mqRaw']),
-      mqVoltage: _toDouble(json['mq_voltage'] ?? json['mqVoltage']),
+      receivedAt: parseDate(json['received_at'] ?? json['receivedAt']),
+      temperature: toDouble(json['temperature']) ?? 0,
+      humidity: toDouble(json['humidity']) ?? 0,
+      uvRaw: toInt(json['uv_raw'] ?? json['uvRaw']),
+      uvVoltage: toDouble(json['uv_voltage'] ?? json['uvVoltage']),
+      soilRaw: toInt(json['soil_raw'] ?? json['soilRaw']),
+      soilVoltage: toDouble(json['soil_voltage'] ?? json['soilVoltage']),
+      mqRaw: toInt(json['mq_raw'] ?? json['mqRaw']),
+      mqVoltage: toDouble(json['mq_voltage'] ?? json['mqVoltage']),
     );
   }
 
@@ -188,7 +188,7 @@ class SensorReading {
     if (v >= 0.5) {
       return const StressStatus(level: StressLevel.warning, color: Color(0xFFFFC107), label: 'Warning');
     }
-    return const StressStatus(level: StressLevel.optimal, color: const Color(0xFF4CAF50), label: 'Good');
+    return const StressStatus(level: StressLevel.optimal, color: Color(0xFF4CAF50), label: 'Good');
   }
 }
 

@@ -28,7 +28,7 @@ class SensorReading {
   final double? mqVoltage;
 
   factory SensorReading.fromJson(Map<String, dynamic> json) {
-    DateTime? _parseDate(dynamic value) {
+    DateTime? parseDate(dynamic value) {
       if (value == null) return null;
       if (value is int) return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true);
       if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt(), isUtc: true);
@@ -36,13 +36,13 @@ class SensorReading {
       return null;
     }
 
-    double? _toDouble(dynamic value) {
+    double? toDouble(dynamic value) {
       if (value == null) return null;
       if (value is num) return value.toDouble();
       return double.tryParse(value.toString());
     }
 
-    int? _toInt(dynamic value) {
+    int? toInt(dynamic value) {
       if (value == null) return null;
       if (value is int) return value;
       if (value is num) return value.toInt();
@@ -52,16 +52,16 @@ class SensorReading {
     return SensorReading(
       id: (json['id'] ?? json['_id'])?.toString(),
       sensorId: (json['sensor_id'] ?? json['sensorId'] ?? json['sensorID'] ?? '').toString(),
-      timestamp: _parseDate(json['timestamp']) ?? DateTime.now().toUtc(),
-      receivedAt: _parseDate(json['received_at'] ?? json['receivedAt']),
-      temperature: _toDouble(json['temperature']) ?? 0,
-      humidity: _toDouble(json['humidity']) ?? 0,
-      uvRaw: _toInt(json['uv_raw'] ?? json['uvRaw']),
-      uvVoltage: _toDouble(json['uv_voltage'] ?? json['uvVoltage']),
-      soilRaw: _toInt(json['soil_raw'] ?? json['soilRaw']),
-      soilVoltage: _toDouble(json['soil_voltage'] ?? json['soilVoltage']),
-      mqRaw: _toInt(json['mq_raw'] ?? json['mqRaw']),
-      mqVoltage: _toDouble(json['mq_voltage'] ?? json['mqVoltage']),
+      timestamp: parseDate(json['timestamp']) ?? DateTime.now().toUtc(),
+      receivedAt: parseDate(json['received_at'] ?? json['receivedAt']),
+      temperature: toDouble(json['temperature']) ?? 0,
+      humidity: toDouble(json['humidity']) ?? 0,
+      uvRaw: toInt(json['uv_raw'] ?? json['uvRaw']),
+      uvVoltage: toDouble(json['uv_voltage'] ?? json['uvVoltage']),
+      soilRaw: toInt(json['soil_raw'] ?? json['soilRaw']),
+      soilVoltage: toDouble(json['soil_voltage'] ?? json['soilVoltage']),
+      mqRaw: toInt(json['mq_raw'] ?? json['mqRaw']),
+      mqVoltage: toDouble(json['mq_voltage'] ?? json['mqVoltage']),
     );
   }
 
