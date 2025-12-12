@@ -31,6 +31,7 @@ class StressGauge extends StatelessWidget {
     final double clamped = value.clamp(min, max);
     return Card(
       elevation: 0,
+      color: Theme.of(context).colorScheme.surface,
       clipBehavior: Clip.hardEdge,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -144,4 +145,5 @@ class _GaugePainter extends CustomPainter {
         oldDelegate.segments != segments;
   }
 }
+
 

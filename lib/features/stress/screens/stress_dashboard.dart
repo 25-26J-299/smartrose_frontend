@@ -53,8 +53,14 @@ class _DashboardView extends StatelessWidget {
 
     return Consumer<SensorProvider>(
       builder: (BuildContext context, SensorProvider provider, Widget? _) {
-        final SensorReading? latest = provider.latest;
-        final List<SensorReading> history = provider.readings;
+        final SensorReading? latest = provider.latestForSelected;
+        final List<SensorReading> history = provider.readingsForSelected;
+        final List<String> greenhouseOptions = <String>[
+          'ALL',
+          ...provider.availableGreenhouseIds,
+        ];
+        final Map<String, String?> ghStations = provider.greenhouseBaseStations;
+        final String selectedGh = provider.selectedGreenhouseId ?? 'ALL';
 
         if (provider.isLoading && latest == null) {
           return const Center(child: CircularProgressIndicator());
@@ -67,8 +73,13 @@ class _DashboardView extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               children: <Widget>[
                 _Header(
+                  selectedGreenhouse: selectedGh,
                   lastUpdated: latest?.displayTime,
+                  baseStationId: latest?.basestationId,
                   scheme: scheme,
+                  greenhouseOptions: greenhouseOptions,
+                  greenhouseStations: ghStations,
+                  onSelect: provider.setSelectedGreenhouse,
                 ),
                 const SizedBox(height: 12),
                 if (provider.errorMessage != null && latest == null)
@@ -80,7 +91,11 @@ class _DashboardView extends StatelessWidget {
                   const SizedBox(height: 12),
                   _RawPanels(latest: latest),
                   const SizedBox(height: 16),
-                ],
+                ] else
+                  _EmptyState(
+                    message: 'No readings for this selection.',
+                    onRetry: () => provider.refresh(force: true),
+                  ),
                 Text('Trends', style: textTheme.titleMedium),
                 const SizedBox(height: 8),
                 if (history.length >= 2)
@@ -91,9 +106,17 @@ class _DashboardView extends StatelessWidget {
                     onRetry: () => provider.refresh(force: true),
                   ),
                 const SizedBox(height: 16),
-                Text('Recent readings', style: textTheme.titleMedium),
-                const SizedBox(height: 8),
-                _HistoryList(readings: history),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    Text('History', style: textTheme.titleMedium),
+                    TextButton.icon(
+                      onPressed: () => _showHistoryDialog(context, provider),
+                      icon: const Icon(Icons.list_alt),
+                      label: const Text('View full history'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -103,17 +126,154 @@ class _DashboardView extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.lastUpdated, required this.scheme});
+void _showHistoryDialog(BuildContext context, SensorProvider provider) {
+  showDialog<void>(
+    context: context,
+    builder: (BuildContext context) {
+      String selectedGh = provider.selectedGreenhouseId ?? 'ALL';
+      final List<String> ghOptions = <String>[
+        'ALL',
+        ...provider.availableGreenhouseIds,
+      ];
+      return StatefulBuilder(
+        builder: (BuildContext context, void Function(void Function()) setState) {
+          final List<SensorReading> rows = (selectedGh == 'ALL'
+                  ? provider.readings
+                  : provider.readings
+                      .where((SensorReading r) => r.greenhouseId == selectedGh))
+              .toList();
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: AlertDialog(
+                contentPadding: const EdgeInsets.all(16),
+                insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                content: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: <Widget>[
+                          const Text(
+                            'Full History',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          SizedBox(
+                            width: 240,
+                            child: DropdownButtonFormField<String>(
+                              value: ghOptions.contains(selectedGh) ? selectedGh : 'ALL',
+                              items: ghOptions
+                                  .map(
+                                    (String gh) => DropdownMenuItem<String>(
+                                      value: gh,
+                                      child: Text(gh == 'ALL' ? 'All Greenhouses' : gh),
+                                    ),
+                                  )
+                                  .toList(),
+                              onChanged: (String? value) => setState(() => selectedGh = value ?? 'ALL'),
+                              decoration: const InputDecoration(
+                                labelText: 'Greenhouse',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Scrollbar(
+                            thumbVisibility: true,
+                            child: SingleChildScrollView(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: DataTable(
+                                  columns: const <DataColumn>[
+                                    DataColumn(label: Text('Time')),
+                                    DataColumn(label: Text('Greenhouse')),
+                                    DataColumn(label: Text('Basestation')),
+                                    DataColumn(label: Text('Temp °C')),
+                                    DataColumn(label: Text('Hum %')),
+                                    DataColumn(label: Text('Soil V')),
+                                    DataColumn(label: Text('UV V')),
+                                    DataColumn(label: Text('Gas V')),
+                                  ],
+                                  rows: rows
+                                      .map(
+                                        (SensorReading r) => DataRow(
+                                          cells: <DataCell>[
+                                            DataCell(Text(
+                                                DateFormat('MMM d HH:mm:ss').format(_toSriLanka(r.displayTime)))),
+                                            DataCell(Text(r.greenhouseId ?? '—')),
+                                            DataCell(Text(r.basestationId)),
+                                            DataCell(Text(r.temperature.toStringAsFixed(1))),
+                                            DataCell(Text(r.humidity.toStringAsFixed(1))),
+                                            DataCell(Text(r.soilVoltage?.toStringAsFixed(2) ?? '—')),
+                                            DataCell(Text(r.uvVoltage?.toStringAsFixed(2) ?? '—')),
+                                            DataCell(Text(r.mqVoltage?.toStringAsFixed(2) ?? '—')),
+                                          ],
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
 
+DateTime _toSriLanka(DateTime dt) =>
+    dt.toUtc().add(const Duration(hours: 5, minutes: 30));
+
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.selectedGreenhouse,
+    required this.lastUpdated,
+    required this.baseStationId,
+    required this.scheme,
+    required this.greenhouseOptions,
+    required this.greenhouseStations,
+    required this.onSelect,
+  });
+
+  final String selectedGreenhouse;
   final DateTime? lastUpdated;
+  final String? baseStationId;
   final ColorScheme scheme;
+  final List<String> greenhouseOptions;
+  final Map<String, String?> greenhouseStations;
+  final ValueChanged<String?> onSelect;
 
   @override
   Widget build(BuildContext context) {
     final String formatted = lastUpdated != null
-        ? DateFormat('MMM d, yyyy • HH:mm').format(lastUpdated!)
+        ? DateFormat('MMM d, yyyy • HH:mm').format(_toSriLanka(lastUpdated!))
         : 'Waiting for first reading';
+    final String titleSuffix =
+        selectedGreenhouse == 'ALL' ? 'All Greenhouses' : selectedGreenhouse;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
@@ -121,7 +281,7 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'SmartRose · Raw Sensor Dashboard',
+              'SmartRose · $titleSuffix Dashboard',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -140,9 +300,53 @@ class _Header extends StatelessWidget {
                 ),
               ],
             ),
+            if (baseStationId != null) ...<Widget>[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceVariant,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Icon(Icons.sensors, size: 14),
+                    const SizedBox(width: 4),
+                    Text('Base Station: $baseStationId'),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
-        
+        SizedBox(
+          width: 220,
+          child: DropdownButtonFormField<String>(
+            value: greenhouseOptions.contains(selectedGreenhouse)
+                ? selectedGreenhouse
+                : greenhouseOptions.firstOrNull,
+            items: greenhouseOptions
+                .map(
+                  (String id) => DropdownMenuItem<String>(
+                    value: id,
+                    child: Text(
+                      id == 'ALL'
+                          ? 'All Greenhouses'
+                          : '${id}${greenhouseStations[id] != null ? ' · ${greenhouseStations[id]}' : ''}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: onSelect,
+            decoration: const InputDecoration(
+              labelText: 'Greenhouse',
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -155,6 +359,7 @@ class _GaugeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool wide = constraints.maxWidth > 900;
@@ -173,10 +378,8 @@ class _GaugeRow extends StatelessWidget {
                 unit: '°C',
                 min: 0,
                 max: 40,
-                segments: const <GaugeSegment>[
-                  GaugeSegment(to: 24, color: Color(0xFF4CAF50)),
-                  GaugeSegment(to: 28, color: Color(0xFFFFC107)),
-                  GaugeSegment(to: 40, color: Color(0xFFF44336)),
+                segments: <GaugeSegment>[
+                  GaugeSegment(to: 40, color: scheme.primary),
                 ],
               ),
             ),
@@ -188,11 +391,8 @@ class _GaugeRow extends StatelessWidget {
                 unit: '%',
                 min: 0,
                 max: 100,
-                segments: const <GaugeSegment>[
-                  GaugeSegment(to: 60, color: Color(0xFFF44336)),
-                  GaugeSegment(to: 75, color: Color(0xFF4CAF50)),
-                  GaugeSegment(to: 85, color: Color(0xFFFFC107)),
-                  GaugeSegment(to: 100, color: Color(0xFFF44336)),
+                segments: <GaugeSegment>[
+                  GaugeSegment(to: 100, color: scheme.secondary),
                 ],
               ),
             ),
@@ -213,7 +413,7 @@ class _SnapshotRow extends StatelessWidget {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final int columns = constraints.maxWidth > 1100
-            ? 6
+            ? 5
             : constraints.maxWidth > 900
                 ? 3
                 : constraints.maxWidth > 600
@@ -233,8 +433,7 @@ class _SnapshotRow extends StatelessWidget {
               child: SnapshotCard(
                 title: 'Temperature',
                 value: '${latest.temperature.toStringAsFixed(1)} °C',
-                subtitle: latest.temperatureStatus.label,
-                color: latest.temperatureStatus.color,
+                color: Theme.of(context).colorScheme.primary,
                 icon: Icons.thermostat,
               ),
             ),
@@ -243,8 +442,7 @@ class _SnapshotRow extends StatelessWidget {
               child: SnapshotCard(
                 title: 'Humidity',
                 value: '${latest.humidity.toStringAsFixed(1)} %',
-                subtitle: latest.humidityStatus.label,
-                color: latest.humidityStatus.color,
+                color: Theme.of(context).colorScheme.secondary,
                 icon: Icons.water_drop,
               ),
             ),
@@ -255,8 +453,7 @@ class _SnapshotRow extends StatelessWidget {
                 value: latest.soilVoltage != null
                     ? '${latest.soilVoltage!.toStringAsFixed(2)} V'
                     : '—',
-                subtitle: latest.soilStatus.label,
-                color: latest.soilStatus.color,
+                color: Theme.of(context).colorScheme.primary,
                 icon: Icons.grass,
               ),
             ),
@@ -267,8 +464,7 @@ class _SnapshotRow extends StatelessWidget {
                 value: latest.uvVoltage != null
                     ? '${latest.uvVoltage!.toStringAsFixed(2)} V'
                     : '—',
-                subtitle: latest.uvStatus.label,
-                color: latest.uvStatus.color,
+                color: Theme.of(context).colorScheme.primary,
                 icon: Icons.wb_sunny,
               ),
             ),
@@ -279,8 +475,7 @@ class _SnapshotRow extends StatelessWidget {
                 value: latest.mqVoltage != null
                     ? '${latest.mqVoltage!.toStringAsFixed(2)} V'
                     : '—',
-                subtitle: latest.gasStatus.label,
-                color: latest.gasStatus.color,
+                color: Theme.of(context).colorScheme.primary,
                 icon: Icons.cloud,
               ),
             ),
@@ -312,7 +507,6 @@ class _RawPanels extends StatelessWidget {
               value: latest.soilVoltage != null
                   ? '${latest.soilVoltage!.toStringAsFixed(2)} V'
                   : '—',
-              status: latest.soilStatus,
               color: scheme.primary,
               width: width,
             ),
@@ -321,7 +515,6 @@ class _RawPanels extends StatelessWidget {
               value: latest.uvVoltage != null
                   ? '${latest.uvVoltage!.toStringAsFixed(2)} V'
                   : '—',
-              status: latest.uvStatus,
               color: const Color(0xFFFFC107),
               width: width,
             ),
@@ -330,7 +523,6 @@ class _RawPanels extends StatelessWidget {
               value: latest.mqVoltage != null
                   ? '${latest.mqVoltage!.toStringAsFixed(2)} V'
                   : '—',
-              status: latest.gasStatus,
               color: const Color(0xFF9C27B0),
               width: width,
             ),
@@ -345,14 +537,12 @@ class _RawCard extends StatelessWidget {
   const _RawCard({
     required this.title,
     required this.value,
-    required this.status,
     required this.color,
     required this.width,
   });
 
   final String title;
   final String value;
-  final StressStatus status;
   final Color color;
   final double width;
 
@@ -385,43 +575,10 @@ class _RawCard extends StatelessWidget {
                   ),
                 ],
               ),
-              _StatusDot(color: status.color, label: status.label),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.color, this.label});
-
-  final Color color;
-  final String? label;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: <Widget>[
-        Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        if (label != null) ...<Widget>[
-          const SizedBox(height: 4),
-          Text(
-            label!,
-            style: Theme.of(context)
-                .textTheme
-                .labelMedium
-                ?.copyWith(color: scheme.onSurfaceVariant),
-          ),
-        ],
-      ],
     );
   }
 }
@@ -455,8 +612,8 @@ class _TrendGrid extends StatelessWidget {
                 title: 'Temperature (°C)',
                 unit: '°C',
                 color: scheme.primary,
-                optimalMin: 18,
-                optimalMax: 24,
+                optimalMin: null,
+                optimalMax: null,
                 points: _map(readings, (SensorReading r) => r.temperature),
               ),
             ),
@@ -466,8 +623,8 @@ class _TrendGrid extends StatelessWidget {
                 title: 'Humidity (%)',
                 unit: '%',
                 color: scheme.secondary,
-                optimalMin: 60,
-                optimalMax: 75,
+                optimalMin: null,
+                optimalMax: null,
                 points: _map(readings, (SensorReading r) => r.humidity),
               ),
             ),
@@ -477,8 +634,8 @@ class _TrendGrid extends StatelessWidget {
                 title: 'Soil Voltage (V)',
                 unit: 'V',
                 color: const Color(0xFF4CAF50),
-                optimalMin: 2.4,
-                optimalMax: 2.9,
+                optimalMin: null,
+                optimalMax: null,
                 points: _map(readings, (SensorReading r) => r.soilVoltage),
               ),
             ),
@@ -488,8 +645,8 @@ class _TrendGrid extends StatelessWidget {
                 title: 'Gas Voltage (V)',
                 unit: 'V',
                 color: const Color(0xFF9C27B0),
-                optimalMin: 0.0,
-                optimalMax: 0.5,
+                optimalMin: null,
+                optimalMax: null,
                 points: _map(readings, (SensorReading r) => r.mqVoltage),
               ),
             ),
@@ -499,61 +656,14 @@ class _TrendGrid extends StatelessWidget {
                 title: 'UV Voltage (V)',
                 unit: 'V',
                 color: const Color(0xFFFFC107),
-                optimalMin: 0.0,
-                optimalMax: 0.5,
+                optimalMin: null,
+                optimalMax: null,
                 points: _map(readings, (SensorReading r) => r.uvVoltage),
               ),
             ),
           ],
         );
       },
-    );
-  }
-}
-
-class _HistoryList extends StatelessWidget {
-  const _HistoryList({required this.readings});
-
-  final List<SensorReading> readings;
-
-  @override
-  Widget build(BuildContext context) {
-    if (readings.isEmpty) {
-      return _EmptyState(
-        message: 'No readings yet.',
-        onRetry: () => Provider.of<SensorProvider>(context, listen: false).refresh(force: true),
-      );
-    }
-    return Column(
-      children: readings
-          .map(
-            (SensorReading r) => Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              child: ListTile(
-                leading: const Icon(Icons.sensors),
-                title: Text(
-                  DateFormat('MMM d, HH:mm:ss').format(r.displayTime),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                subtitle: Text(
-                  'Temp ${r.temperature.toStringAsFixed(1)} °C · Hum ${r.humidity.toStringAsFixed(1)} % · Soil ${r.soilVoltage?.toStringAsFixed(2) ?? '—'} V',
-                ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: r.temperatureStatus.color.withOpacity(0.16),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    r.temperatureStatus.label ?? '',
-                    style: TextStyle(color: r.temperatureStatus.color),
-                  ),
-                ),
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 }
