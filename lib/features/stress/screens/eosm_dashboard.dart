@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../shared/models/sensor_reading.dart';
 import '../../../shared/providers/sensor_provider.dart';
+import '../../../shared/utils/collection_extensions.dart';
 import '../../../shared/widgets/snapshot_card.dart';
 import '../../../shared/widgets/stress_gauge.dart';
 import '../../../shared/widgets/trend_chart.dart';
@@ -167,7 +168,7 @@ void _showHistoryDialog(BuildContext context, SensorProvider provider) {
                           SizedBox(
                             width: 240,
                             child: DropdownButtonFormField<String>(
-                              value: ghOptions.contains(selectedGh) ? selectedGh : 'ALL',
+                              initialValue: ghOptions.contains(selectedGh) ? selectedGh : 'ALL',
                               items: ghOptions
                                   .map(
                                     (String gh) => DropdownMenuItem<String>(
@@ -318,7 +319,7 @@ class _Header extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: scheme.surfaceVariant,
+                  color: scheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
@@ -336,7 +337,7 @@ class _Header extends StatelessWidget {
         SizedBox(
           width: 220,
           child: DropdownButtonFormField<String>(
-            value: greenhouseOptions.contains(selectedGreenhouse)
+            initialValue: greenhouseOptions.contains(selectedGreenhouse)
                 ? selectedGreenhouse
                 : greenhouseOptions.firstOrNull,
             items: greenhouseOptions
@@ -346,7 +347,7 @@ class _Header extends StatelessWidget {
                     child: Text(
                       id == 'ALL'
                           ? 'All Greenhouses'
-                          : '${id}${greenhouseStations[id] != null ? ' · ${greenhouseStations[id]}' : ''}',
+                          : '$id${greenhouseStations[id] != null ? ' · ${greenhouseStations[id]}' : ''}',
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

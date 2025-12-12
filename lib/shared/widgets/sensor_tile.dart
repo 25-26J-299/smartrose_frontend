@@ -106,7 +106,7 @@ class SensorTile extends StatelessWidget {
     return Chip(
       label: Text(label),
       avatar: Icon(icon, size: 18, color: scheme.onSurfaceVariant),
-      backgroundColor: scheme.surfaceVariant.withOpacity(0.5),
+      backgroundColor: scheme.surfaceContainerHighest.withOpacity(0.5),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
   }
