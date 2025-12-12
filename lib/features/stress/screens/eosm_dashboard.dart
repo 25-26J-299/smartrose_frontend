@@ -135,6 +135,8 @@ void _showHistoryDialog(BuildContext context, SensorProvider provider) {
         'ALL',
         ...provider.availableGreenhouseIds,
       ];
+      final ScrollController verticalController = ScrollController();
+      final ScrollController horizontalController = ScrollController();
       return StatefulBuilder(
         builder: (BuildContext context, void Function(void Function()) setState) {
           final List<SensorReading> rows = (selectedGh == 'ALL'
@@ -189,38 +191,49 @@ void _showHistoryDialog(BuildContext context, SensorProvider provider) {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Scrollbar(
+                            controller: verticalController,
                             thumbVisibility: true,
                             child: SingleChildScrollView(
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: DataTable(
-                                  columns: const <DataColumn>[
-                                    DataColumn(label: Text('Time')),
-                                    DataColumn(label: Text('Greenhouse')),
-                                    DataColumn(label: Text('Basestation')),
-                                    DataColumn(label: Text('Temp °C')),
-                                    DataColumn(label: Text('Hum %')),
-                                    DataColumn(label: Text('Soil V')),
-                                    DataColumn(label: Text('UV V')),
-                                    DataColumn(label: Text('Gas V')),
-                                  ],
-                                  rows: rows
-                                      .map(
-                                        (SensorReading r) => DataRow(
-                                          cells: <DataCell>[
-                                            DataCell(Text(
-                                                DateFormat('MMM d HH:mm:ss').format(_toSriLanka(r.displayTime)))),
-                                            DataCell(Text(r.greenhouseId ?? '—')),
-                                            DataCell(Text(r.basestationId)),
-                                            DataCell(Text(r.temperature.toStringAsFixed(1))),
-                                            DataCell(Text(r.humidity.toStringAsFixed(1))),
-                                            DataCell(Text(r.soilVoltage?.toStringAsFixed(2) ?? '—')),
-                                            DataCell(Text(r.uvVoltage?.toStringAsFixed(2) ?? '—')),
-                                            DataCell(Text(r.mqVoltage?.toStringAsFixed(2) ?? '—')),
-                                          ],
-                                        ),
-                                      )
-                                      .toList(),
+                              controller: verticalController,
+                              primary: false,
+                              child: Scrollbar(
+                                controller: horizontalController,
+                                thumbVisibility: true,
+                                notificationPredicate: (ScrollNotification notification) =>
+                                    notification.depth == 1,
+                                child: SingleChildScrollView(
+                                  controller: horizontalController,
+                                  primary: false,
+                                  scrollDirection: Axis.horizontal,
+                                  child: DataTable(
+                                    columns: const <DataColumn>[
+                                      DataColumn(label: Text('Time')),
+                                      DataColumn(label: Text('Greenhouse')),
+                                      DataColumn(label: Text('Basestation')),
+                                      DataColumn(label: Text('Temp °C')),
+                                      DataColumn(label: Text('Hum %')),
+                                      DataColumn(label: Text('Soil V')),
+                                      DataColumn(label: Text('UV V')),
+                                      DataColumn(label: Text('Gas V')),
+                                    ],
+                                    rows: rows
+                                        .map(
+                                          (SensorReading r) => DataRow(
+                                            cells: <DataCell>[
+                                              DataCell(Text(
+                                                  DateFormat('MMM d HH:mm:ss').format(_toSriLanka(r.displayTime)))),
+                                              DataCell(Text(r.greenhouseId ?? '—')),
+                                              DataCell(Text(r.basestationId)),
+                                              DataCell(Text(r.temperature.toStringAsFixed(1))),
+                                              DataCell(Text(r.humidity.toStringAsFixed(1))),
+                                              DataCell(Text(r.soilVoltage?.toStringAsFixed(2) ?? '—')),
+                                              DataCell(Text(r.uvVoltage?.toStringAsFixed(2) ?? '—')),
+                                              DataCell(Text(r.mqVoltage?.toStringAsFixed(2) ?? '—')),
+                                            ],
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
                                 ),
                               ),
                             ),
