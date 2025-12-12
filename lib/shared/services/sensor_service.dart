@@ -15,7 +15,7 @@ class SensorService {
     try {
       // Start of EOSM
       final http.Response response = await _apiService.get(
-        '/sensor-data/',
+        '/eosm-data/',
         query: <String, String>{'limit': '$limit'},
       );
       // End of EOSM
