@@ -30,7 +30,7 @@ class SensorApi {
     };
     // Start of EOSM
     final Uri uri = _apiService.uri('/eosm-data/', query: query);
-    // End of EOSM
+    
     try {
       final http.Response response = await _apiService.getUri(uri);
       if (response.statusCode >= 200 && response.statusCode < 300) {
