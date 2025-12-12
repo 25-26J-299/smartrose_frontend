@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+// Start of EOSM
 class SnapshotCard extends StatelessWidget {
   const SnapshotCard({
     required this.title,
@@ -77,4 +78,6 @@ class SnapshotCard extends StatelessWidget {
     );
   }
 }
+// End of EOSM
+
 

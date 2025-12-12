@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../models/sensor_reading.dart';
 
+// Start of EOSM
 class SensorTile extends StatelessWidget {
   const SensorTile({required this.reading, super.key});
 
@@ -13,7 +14,7 @@ class SensorTile extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final DateTime ts = reading.receivedAt ?? reading.timestamp;
     final String subtitle =
-        '${DateFormat('MMM d, HH:mm').format(ts.toLocal())} • ${reading.sensorId}';
+        '${DateFormat('MMM d, HH:mm').format(ts.toLocal())} • ${reading.basestationId}${reading.greenhouseId != null ? ' · ${reading.greenhouseId}' : ''}';
 
     return Card(
       elevation: 0,
@@ -39,7 +40,7 @@ class SensorTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Sensor ${reading.sensorId}',
+                        'Base station ${reading.basestationId}',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),
@@ -110,3 +111,4 @@ class SensorTile extends StatelessWidget {
     );
   }
 }
+// End of EOSM

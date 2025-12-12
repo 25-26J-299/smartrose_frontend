@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// Start of EOSM
+
 enum StressLevel { optimal, warning, critical }
 
 class StressStatus {
@@ -10,12 +12,15 @@ class StressStatus {
   final String? label;
 }
 
+// End of EOSM
+
 class SensorReading {
   SensorReading({
-    required this.sensorId,
+    required this.basestationId,
     required this.timestamp,
     required this.temperature,
     required this.humidity,
+    this.greenhouseId,
     this.id,
     this.receivedAt,
     this.uvRaw,
@@ -27,7 +32,8 @@ class SensorReading {
   });
 
   final String? id;
-  final String sensorId;
+  final String basestationId;
+  final String? greenhouseId;
   final DateTime timestamp; // localized to Sri Lanka (UTC+5:30)
   final DateTime? receivedAt; // localized to Sri Lanka (UTC+5:30)
   final double temperature;
@@ -80,7 +86,19 @@ class SensorReading {
 
     return SensorReading(
       id: (json['id'] ?? json['_id'])?.toString(),
-      sensorId: (json['sensor_id'] ?? json['sensorId'] ?? json['sensorID'] ?? '').toString(),
+      basestationId: (json['basestationId'] ??
+              json['basestation_id'] ??
+              json['baseStationId'] ??
+              json['sensor_id'] ??
+              json['sensorId'] ??
+              json['sensorID'] ??
+              '')
+          .toString(),
+      greenhouseId: (json['greenhouseId'] ??
+              json['greenhouse_id'] ??
+              json['greenhouseID'] ??
+              json['greenhouseid'])
+          ?.toString(),
       timestamp: ts,
       receivedAt: _parseDate(json['received_at'] ?? json['receivedAt']),
       temperature: _toDouble(json['temperature']) ?? 0,
@@ -96,7 +114,8 @@ class SensorReading {
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
-        'sensor_id': sensorId,
+        'basestationId': basestationId,
+        if (greenhouseId != null) 'greenhouseId': greenhouseId,
         'timestamp': timestamp.toIso8601String(),
         if (receivedAt != null) 'received_at': receivedAt!.toIso8601String(),
         'temperature': temperature,
@@ -172,4 +191,5 @@ class SensorReading {
     return const StressStatus(level: StressLevel.optimal, color: const Color(0xFF4CAF50), label: 'Good');
   }
 }
+
 

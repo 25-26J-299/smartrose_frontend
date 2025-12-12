@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
@@ -7,38 +5,32 @@ import '../models/sensor_reading.dart';
 import 'api_service.dart';
 
 class SensorApi {
-  SensorApi({ApiService? apiService, this.defaultSensorId = 'gateway_01'})
+  SensorApi({ApiService? apiService, this.defaultBasestationId = 'basestation_01'})
       : _apiService = apiService ?? ApiService();
 
   final ApiService _apiService;
-  final String defaultSensorId;
+  final String defaultBasestationId;
 
   Future<SensorReading?> fetchLatest({String? sensorId}) async {
-    final String id = sensorId ?? defaultSensorId;
-    final Uri uri = _apiService.uri('/sensor-data/latest', query: <String, String>{
-      'sensorId': id,
-    });
-    try {
-      final http.Response response = await _apiService.getUri(uri);
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final Map<String, dynamic>? body = _apiService.decodeJson(response);
-        final dynamic data = body?['data'] ?? body?['reading'] ?? body;
-        if (data is Map<String, dynamic>) {
-          return SensorReading.fromJson(data);
-        }
-      }
-    } catch (err) {
-      debugPrint('SensorApi.fetchLatest error: $err');
-    }
-    return null;
+    // No latest endpoint; use list with limit=1 (already sorted newest-first server-side).
+    final List<SensorReading> list = await fetchHistory(
+      limit: 1,
+      sensorId: sensorId,
+    );
+    return list.isNotEmpty ? list.first : null;
   }
 
-  Future<List<SensorReading>> fetchHistory({int limit = 100, String? sensorId}) async {
-    final String id = sensorId ?? defaultSensorId;
-    final Uri uri = _apiService.uri('/sensor-data', query: <String, String>{
+  Future<List<SensorReading>> fetchHistory({
+    int limit = 100,
+    String? sensorId,
+  }) async {
+    final Map<String, String> query = <String, String>{
       'limit': '$limit',
-      'sensorId': id,
-    });
+      if (sensorId != null) 'basestationId': sensorId,
+    };
+    // Start of EOSM
+    final Uri uri = _apiService.uri('/eosm-data/', query: query);
+    
     try {
       final http.Response response = await _apiService.getUri(uri);
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -64,4 +56,6 @@ class SensorApi {
     return <dynamic>[];
   }
 }
+// End of EOSM
+
 
