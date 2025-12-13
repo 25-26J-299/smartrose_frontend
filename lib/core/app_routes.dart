@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../features/disease/screens/disease_home_screen.dart';
 import '../features/freshness/screens/freshness_home_screen.dart';
 import '../features/nutrition/screens/nutrition_home_screen.dart';
-import '../features/stress/screens/stress_home_screen.dart';
+import '../features/stress/screens/eosm_home_screen.dart';
 import '../screens/bottom_navigation_shell.dart';
 import '../screens/home_screen.dart';
 import '../screens/login_screen.dart';
@@ -64,7 +64,7 @@ class AppRoutes {
     settings: (BuildContext context) => const SettingsScreen(),
     freshness: (BuildContext context) => const FreshnessHomeScreen(),
     nutrition: (BuildContext context) => const NutritionHomeScreen(),
-    stress: (BuildContext context) => const StressHomeScreen(),
+    stress: (BuildContext context) => const EosmHomeScreen(),
     disease: (BuildContext context) => const DiseaseHomeScreen(),
   };
 
