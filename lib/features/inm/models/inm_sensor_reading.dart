@@ -4,7 +4,7 @@
 class InmSensorReading {
   final String id;
   final String deviceId;
-  final DateTime timestamp;
+  final DateTime? timestamp;
   final double soilMoisture;
   final double soilTemp;
   final double airTemp;
@@ -18,7 +18,7 @@ class InmSensorReading {
   InmSensorReading({
     required this.id,
     required this.deviceId,
-    required this.timestamp,
+    this.timestamp,
     required this.soilMoisture,
     required this.soilTemp,
     required this.airTemp,
@@ -34,7 +34,7 @@ class InmSensorReading {
     return InmSensorReading(
       id: json['_id']?.toString() ?? '',
       deviceId: json['device_id']?.toString() ?? 'unknown',
-      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      timestamp: DateTime.tryParse(json['timestamp'] ?? ''),
       soilMoisture: _parseDouble(json['soil_moisture']),
       soilTemp: _parseDouble(json['soil_temp']),
       airTemp: _parseDouble(json['air_temp']),
@@ -57,7 +57,9 @@ class InmSensorReading {
 
   /// Returns a human-readable "X minutes ago" string
   String get timeAgo {
-    final Duration diff = DateTime.now().difference(timestamp.toLocal());
+    if (timestamp == null) return 'Unknown time';
+    
+    final Duration diff = DateTime.now().difference(timestamp!.toLocal());
     
     if (diff.inSeconds < 60) {
       return '${diff.inSeconds} seconds ago';
@@ -72,7 +74,9 @@ class InmSensorReading {
 
   /// Returns formatted local time string
   String get formattedTime {
-    final local = timestamp.toLocal();
+    if (timestamp == null) return 'No timestamp';
+    
+    final local = timestamp!.toLocal();
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
     final day = local.day.toString().padLeft(2, '0');

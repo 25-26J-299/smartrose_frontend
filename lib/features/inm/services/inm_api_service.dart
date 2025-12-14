@@ -47,8 +47,13 @@ class InmApiService {
             .map((json) => InmSensorReading.fromJson(json as Map<String, dynamic>))
             .toList();
 
-        // Sort by timestamp descending (newest first)
-        readings.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        // Sort by timestamp descending (newest first), null timestamps go to end
+        readings.sort((a, b) {
+          if (a.timestamp == null && b.timestamp == null) return 0;
+          if (a.timestamp == null) return 1;
+          if (b.timestamp == null) return -1;
+          return b.timestamp!.compareTo(a.timestamp!);
+        });
 
         debugPrint('✅ INM: Successfully fetched ${readings.length} readings');
         return readings;
