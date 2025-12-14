@@ -20,12 +20,6 @@ class DashboardScreen extends StatelessWidget {
       route: AppRoutes.freshness,
     ),
     _DashboardEntry(
-      title: 'Nutrition Monitoring',
-      subtitle: 'Review nutrient balance and fertilizer guidance.',
-      icon: Icons.eco,
-      route: AppRoutes.nutrition,
-    ),
-    _DashboardEntry(
       title: 'Stress Monitoring',
       subtitle: 'Detect environmental stressors early.',
       icon: Icons.monitor_heart,
