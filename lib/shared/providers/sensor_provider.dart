@@ -133,6 +133,121 @@ class SensorProvider extends ChangeNotifier {
     }
   }
 
+  Future<List<SensorReading>> fetchHistoryForDateRange({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? greenhouseId,
+    int limit = 1000,
+  }) async {
+    try {
+      // Convert Sri Lanka dates to UTC date ranges for backend filtering
+      // Sri Lanka is UTC+5:30
+      // Dec 1 00:00:00 SL = Nov 30 18:30:00 UTC
+      // Dec 1 23:59:59 SL = Dec 1 18:29:59 UTC
+      // So for Dec 1 SL, query backend with Nov 30 to Dec 2 (UTC dates) to ensure we capture all data
+      DateTime? utcStartDate;
+      DateTime? utcEndDate;
+      
+      if (startDate != null) {
+        // Start of selected day in Sri Lanka = previous day 18:30 UTC
+        // To be safe, use previous day (backend will use 00:00 UTC of that day)
+        utcStartDate = DateTime(startDate.year, startDate.month, startDate.day).subtract(const Duration(days: 1));
+      }
+      
+      if (endDate != null) {
+        // endDate is stored as next day (exclusive) in Sri Lanka time
+        // If user selected Dec 1, endDate is Dec 2
+        // We want to include up to Dec 1 23:59:59 SL = Dec 1 18:29:59 UTC
+        // So use endDate - 1 day, which gives us Dec 1
+        // Backend will interpret "2025-12-01" as Dec 1 23:59:59 UTC, which is perfect
+        final DateTime actualEndDate = endDate.subtract(const Duration(days: 1));
+        utcEndDate = DateTime(actualEndDate.year, actualEndDate.month, actualEndDate.day);
+      }
+
+      // Backend has a maximum limit of 2000, so cap at that
+      final int fetchLimit = limit.clamp(1, 2000);
+      final List<SensorReading> history = await _api.fetchHistory(
+        sensorId: null,
+        limit: fetchLimit,
+        startDate: utcStartDate,
+        endDate: utcEndDate,
+      );
+
+      // Convert UTC timestamps to Sri Lanka time for date comparison
+      DateTime _toSriLanka(DateTime dt) {
+        final DateTime utc = dt.isUtc ? dt : dt.toUtc();
+        return utc.add(const Duration(hours: 5, minutes: 30));
+      }
+
+      // Client-side filtering by date in Sri Lanka timezone
+      List<SensorReading> filtered = history;
+      
+      if (startDate != null || endDate != null) {
+        filtered = filtered.where((SensorReading r) {
+          final DateTime slTime = _toSriLanka(r.displayTime);
+          // Extract just the date part (year, month, day) in Sri Lanka time
+          final int slYear = slTime.year;
+          final int slMonth = slTime.month;
+          final int slDay = slTime.day;
+          
+          if (startDate != null && endDate != null) {
+            // Both dates provided - endDate is stored as next day (exclusive)
+            final int startYear = startDate.year;
+            final int startMonth = startDate.month;
+            final int startDay = startDate.day;
+            
+            final int endYear = endDate.year;
+            final int endMonth = endDate.month;
+            final int endDay = endDate.day;
+            
+            // Check if reading date is >= startDate and < endDate (in Sri Lanka time)
+            final bool afterStart = slYear > startYear ||
+                (slYear == startYear && slMonth > startMonth) ||
+                (slYear == startYear && slMonth == startMonth && slDay >= startDay);
+            
+            final bool beforeEnd = slYear < endYear ||
+                (slYear == endYear && slMonth < endMonth) ||
+                (slYear == endYear && slMonth == endMonth && slDay < endDay);
+            
+            return afterStart && beforeEnd;
+          } else if (startDate != null) {
+            final int startYear = startDate.year;
+            final int startMonth = startDate.month;
+            final int startDay = startDate.day;
+            
+            return slYear > startYear ||
+                (slYear == startYear && slMonth > startMonth) ||
+                (slYear == startYear && slMonth == startMonth && slDay >= startDay);
+          } else if (endDate != null) {
+            // endDate is stored as next day (exclusive)
+            final int endYear = endDate.year;
+            final int endMonth = endDate.month;
+            final int endDay = endDate.day;
+            
+            return slYear < endYear ||
+                (slYear == endYear && slMonth < endMonth) ||
+                (slYear == endYear && slMonth == endMonth && slDay < endDay);
+          }
+          return true;
+        }).toList();
+      }
+
+      // Filter by greenhouse
+      if (greenhouseId != null && greenhouseId != 'ALL') {
+        filtered = filtered.where((SensorReading r) => r.greenhouseId == greenhouseId).toList();
+      }
+      
+      // Sort by timestamp descending (newest first)
+      filtered.sort((a, b) => b.displayTime.compareTo(a.displayTime));
+      
+      // Limit results
+      return filtered.take(limit).toList();
+    } catch (err) {
+      debugPrint('SensorProvider.fetchHistoryForDateRange error: $err');
+      return <SensorReading>[];
+    }
+  }
+
   @override
   void dispose() {
     _refreshTimer?.cancel();
