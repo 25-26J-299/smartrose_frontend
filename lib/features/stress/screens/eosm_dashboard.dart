@@ -130,137 +130,430 @@ class _DashboardView extends StatelessWidget {
 void _showHistoryDialog(BuildContext context, SensorProvider provider) {
   showDialog<void>(
     context: context,
-    builder: (BuildContext context) {
-      String selectedGh = provider.selectedGreenhouseId ?? 'ALL';
-      final List<String> ghOptions = <String>[
-        'ALL',
-        ...provider.availableGreenhouseIds,
-      ];
-      final ScrollController verticalController = ScrollController();
-      final ScrollController horizontalController = ScrollController();
-      return StatefulBuilder(
-        builder: (BuildContext context, void Function(void Function()) setState) {
-          final List<SensorReading> rows = (selectedGh == 'ALL'
-                  ? provider.readings
-                  : provider.readings
-                      .where((SensorReading r) => r.greenhouseId == selectedGh))
-              .toList();
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1100),
-              child: AlertDialog(
-                contentPadding: const EdgeInsets.all(16),
-                insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                content: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  height: MediaQuery.of(context).size.height * 0.7,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: <Widget>[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: <Widget>[
-                          const Text(
-                            'Full History',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          SizedBox(
-                            width: 240,
-                            child: DropdownButtonFormField<String>(
-                              initialValue: ghOptions.contains(selectedGh) ? selectedGh : 'ALL',
-                              items: ghOptions
-                                  .map(
-                                    (String gh) => DropdownMenuItem<String>(
-                                      value: gh,
-                                      child: Text(gh == 'ALL' ? 'All Greenhouses' : gh),
-                                    ),
-                                  )
-                                  .toList(),
-                              onChanged: (String? value) => setState(() => selectedGh = value ?? 'ALL'),
-                              decoration: const InputDecoration(
-                                labelText: 'Greenhouse',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Scrollbar(
-                            controller: verticalController,
-                            thumbVisibility: true,
-                            child: SingleChildScrollView(
-                              controller: verticalController,
-                              primary: false,
-                              child: Scrollbar(
-                                controller: horizontalController,
-                                thumbVisibility: true,
-                                notificationPredicate: (ScrollNotification notification) =>
-                                    notification.depth == 1,
-                                child: SingleChildScrollView(
-                                  controller: horizontalController,
-                                  primary: false,
-                                  scrollDirection: Axis.horizontal,
-                                  child: DataTable(
-                                    columns: const <DataColumn>[
-                                      DataColumn(label: Text('Time')),
-                                      DataColumn(label: Text('Greenhouse')),
-                                      DataColumn(label: Text('Basestation')),
-                                      DataColumn(label: Text('Temp °C')),
-                                      DataColumn(label: Text('Hum %')),
-                                      DataColumn(label: Text('Soil V')),
-                                      DataColumn(label: Text('UV V')),
-                                      DataColumn(label: Text('Gas V')),
-                                    ],
-                                    rows: rows
-                                        .map(
-                                          (SensorReading r) => DataRow(
-                                            cells: <DataCell>[
-                                              DataCell(Text(
-                                                  DateFormat('MMM d HH:mm:ss').format(_toSriLanka(r.displayTime)))),
-                                              DataCell(Text(r.greenhouseId ?? '—')),
-                                              DataCell(Text(r.basestationId)),
-                                              DataCell(Text(r.temperature.toStringAsFixed(1))),
-                                              DataCell(Text(r.humidity.toStringAsFixed(1))),
-                                              DataCell(Text(r.soilVoltage?.toStringAsFixed(2) ?? '—')),
-                                              DataCell(Text(r.uvVoltage?.toStringAsFixed(2) ?? '—')),
-                                              DataCell(Text(r.mqVoltage?.toStringAsFixed(2) ?? '—')),
-                                            ],
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                actions: <Widget>[
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Close'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      );
-    },
+    builder: (BuildContext context) => _HistoryDialogContent(provider: provider),
   );
 }
 
-DateTime _toSriLanka(DateTime dt) =>
-    dt.toUtc().add(const Duration(hours: 5, minutes: 30));
+class _HistoryDialogContent extends StatefulWidget {
+  const _HistoryDialogContent({required this.provider});
+
+  final SensorProvider provider;
+
+  @override
+  State<_HistoryDialogContent> createState() => _HistoryDialogContentState();
+}
+
+enum _SortColumn {
+  time,
+  greenhouse,
+  basestation,
+  temperature,
+  humidity,
+  soilVoltage,
+  uvVoltage,
+  gasVoltage,
+}
+
+class _HistoryDialogContentState extends State<_HistoryDialogContent> {
+  late final ScrollController verticalController;
+  late final ScrollController horizontalController;
+  
+  // Initialize with current date
+  late DateTime startDate;
+  late DateTime endDate;
+  List<SensorReading> allRows = <SensorReading>[]; // All fetched rows
+  List<SensorReading> displayedRows = <SensorReading>[]; // Currently displayed rows
+  bool isLoadingHistory = false;
+  String selectedGh = 'ALL';
+  bool _initialLoadDone = false;
+  int _displayedCount = 20; // Initial display count
+  static const int _pageSize = 20;
+  
+  // Sorting state
+  _SortColumn? _sortColumn;
+  bool _sortAscending = true;
+  
+  @override
+  void initState() {
+    super.initState();
+    verticalController = ScrollController();
+    horizontalController = ScrollController();
+    // Use local date for today (user's timezone)
+    final DateTime now = DateTime.now();
+    final DateTime todayStart = DateTime(now.year, now.month, now.day);
+    startDate = todayStart;
+    endDate = todayStart.add(const Duration(days: 1));
+    selectedGh = widget.provider.selectedGreenhouseId ?? 'ALL';
+    
+    // Load initial data for today
+    WidgetsBinding.instance.addPostFrameCallback((_) => loadHistory());
+  }
+  
+  @override
+  void dispose() {
+    verticalController.dispose();
+    horizontalController.dispose();
+    super.dispose();
+  }
+  
+  Future<void> loadHistory({bool resetPagination = true}) async {
+    setState(() {
+      isLoadingHistory = true;
+    });
+    final List<SensorReading> fetched = await widget.provider.fetchHistoryForDateRange(
+      startDate: startDate,
+      endDate: endDate,
+      greenhouseId: selectedGh == 'ALL' ? null : selectedGh,
+      limit: 2000, // Fetch all matching records for sorting/pagination (backend max limit)
+    );
+    if (mounted) {
+      setState(() {
+        allRows = fetched;
+        if (resetPagination) {
+          _displayedCount = _pageSize;
+        }
+        _applySortAndPagination();
+        isLoadingHistory = false;
+        _initialLoadDone = true;
+      });
+    }
+  }
+  
+  void _applySortAndPagination() {
+    List<SensorReading> sorted = List<SensorReading>.from(allRows);
+    
+    // Apply sorting
+    if (_sortColumn != null) {
+      sorted.sort((a, b) {
+        int comparison = 0;
+        switch (_sortColumn!) {
+          case _SortColumn.time:
+            comparison = a.displayTime.compareTo(b.displayTime);
+            break;
+          case _SortColumn.greenhouse:
+            comparison = (a.greenhouseId ?? '').compareTo(b.greenhouseId ?? '');
+            break;
+          case _SortColumn.basestation:
+            comparison = a.basestationId.compareTo(b.basestationId);
+            break;
+          case _SortColumn.temperature:
+            comparison = a.temperature.compareTo(b.temperature);
+            break;
+          case _SortColumn.humidity:
+            comparison = a.humidity.compareTo(b.humidity);
+            break;
+          case _SortColumn.soilVoltage:
+            final double aVal = a.soilVoltage ?? 0;
+            final double bVal = b.soilVoltage ?? 0;
+            comparison = aVal.compareTo(bVal);
+            break;
+          case _SortColumn.uvVoltage:
+            final double aVal = a.uvVoltage ?? 0;
+            final double bVal = b.uvVoltage ?? 0;
+            comparison = aVal.compareTo(bVal);
+            break;
+          case _SortColumn.gasVoltage:
+            final double aVal = a.mqVoltage ?? 0;
+            final double bVal = b.mqVoltage ?? 0;
+            comparison = aVal.compareTo(bVal);
+            break;
+        }
+        return _sortAscending ? comparison : -comparison;
+      });
+    }
+    
+    // Apply pagination
+    displayedRows = sorted.take(_displayedCount).toList();
+  }
+  
+  void _onSort(_SortColumn column) {
+    setState(() {
+      if (_sortColumn == column) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortColumn = column;
+        _sortAscending = true;
+      }
+      _applySortAndPagination();
+    });
+  }
+  
+  void _loadMore() {
+    setState(() {
+      _displayedCount += _pageSize;
+      _applySortAndPagination();
+    });
+  }
+  
+  DataColumn _buildSortableColumn(String label, _SortColumn column) {
+    final bool isSorted = _sortColumn == column;
+    return DataColumn(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(label),
+          if (isSorted)
+            Icon(
+              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+              size: 16,
+            )
+          else
+            const Icon(Icons.unfold_more, size: 16, color: Colors.grey),
+        ],
+      ),
+      onSort: (int columnIndex, bool ascending) => _onSort(column),
+    );
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    final List<String> ghOptions = <String>[
+      'ALL',
+      ...widget.provider.availableGreenhouseIds,
+    ];
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1100),
+        child: AlertDialog(
+          contentPadding: const EdgeInsets.all(16),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: <Widget>[
+                    const Text(
+                      'Full History',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(
+                      width: 240,
+                      child: DropdownButtonFormField<String>(
+                        value: ghOptions.contains(selectedGh) ? selectedGh : 'ALL',
+                        items: ghOptions
+                            .map(
+                              (String gh) => DropdownMenuItem<String>(
+                                value: gh,
+                                child: Text(gh == 'ALL' ? 'All Greenhouses' : gh),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (String? value) {
+                          setState(() {
+                            selectedGh = value ?? 'ALL';
+                          });
+                          loadHistory(resetPagination: true);
+                        },
+                        decoration: const InputDecoration(
+                          labelText: 'Greenhouse',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: startDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now().add(const Duration(days: 1)),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              startDate = DateTime(picked.year, picked.month, picked.day);
+                            });
+                            loadHistory(resetPagination: true);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Start Date',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            suffixIcon: Icon(Icons.calendar_today),
+                          ),
+                          child: Text(
+                            DateFormat('MMM d, yyyy').format(startDate),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () async {
+                          final DateTime? picked = await showDatePicker(
+                            context: context,
+                            initialDate: endDate.subtract(const Duration(days: 1)),
+                            firstDate: startDate,
+                            lastDate: DateTime.now().add(const Duration(days: 1)),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              endDate = DateTime(picked.year, picked.month, picked.day)
+                                  .add(const Duration(days: 1));
+                            });
+                            loadHistory(resetPagination: true);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'End Date',
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                            suffixIcon: Icon(Icons.calendar_today),
+                          ),
+                          child: Text(
+                            DateFormat('MMM d, yyyy').format(endDate.subtract(const Duration(days: 1))),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: isLoadingHistory ? null : () => loadHistory(resetPagination: true),
+                      icon: isLoadingHistory
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.search),
+                      label: const Text('Load'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: isLoadingHistory && !_initialLoadDone
+                        ? const Center(child: CircularProgressIndicator())
+                        : allRows.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Icon(Icons.inbox, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'No data found for selected date range',
+                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : Column(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Scrollbar(
+                                      controller: verticalController,
+                                      thumbVisibility: true,
+                                      child: SingleChildScrollView(
+                                        controller: verticalController,
+                                        primary: false,
+                                        child: Scrollbar(
+                                          controller: horizontalController,
+                                          thumbVisibility: true,
+                                          notificationPredicate: (ScrollNotification notification) =>
+                                              notification.depth == 1,
+                                          child: SingleChildScrollView(
+                                            controller: horizontalController,
+                                            primary: false,
+                                            scrollDirection: Axis.horizontal,
+                                            child: DataTable(
+                                              columns: <DataColumn>[
+                                                _buildSortableColumn('Time', _SortColumn.time),
+                                                _buildSortableColumn('Greenhouse', _SortColumn.greenhouse),
+                                                _buildSortableColumn('Basestation', _SortColumn.basestation),
+                                                _buildSortableColumn('Temp °C', _SortColumn.temperature),
+                                                _buildSortableColumn('Hum %', _SortColumn.humidity),
+                                                _buildSortableColumn('Soil V', _SortColumn.soilVoltage),
+                                                _buildSortableColumn('UV V', _SortColumn.uvVoltage),
+                                                _buildSortableColumn('Gas V', _SortColumn.gasVoltage),
+                                              ],
+                                              rows: displayedRows
+                                                  .map(
+                                                    (SensorReading r) => DataRow(
+                                                      cells: <DataCell>[
+                                                        DataCell(Text(
+                                                            DateFormat('MMM d HH:mm:ss').format(_toSriLanka(r.displayTime)))),
+                                                        DataCell(Text(r.greenhouseId ?? '—')),
+                                                        DataCell(Text(r.basestationId)),
+                                                        DataCell(Text(r.temperature.toStringAsFixed(1))),
+                                                        DataCell(Text(r.humidity.toStringAsFixed(1))),
+                                                        DataCell(Text(r.soilVoltage?.toStringAsFixed(2) ?? '—')),
+                                                        DataCell(Text(r.uvVoltage?.toStringAsFixed(2) ?? '—')),
+                                                        DataCell(Text(r.mqVoltage?.toStringAsFixed(2) ?? '—')),
+                                                      ],
+                                                    ),
+                                                  )
+                                                  .toList(),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_displayedCount < allRows.length)
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: OutlinedButton.icon(
+                                        onPressed: _loadMore,
+                                        icon: const Icon(Icons.expand_more),
+                                        label: Text(
+                                          'Load More (${allRows.length - _displayedCount} remaining)',
+                                        ),
+                                      ),
+                                    ),
+                                  if (_displayedCount >= allRows.length && allRows.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text(
+                                        'Showing all ${allRows.length} records',
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+DateTime _toSriLanka(DateTime dt) {
+  // Convert UTC DateTime to Sri Lanka time (UTC+5:30)
+  final DateTime utc = dt.isUtc ? dt : dt.toUtc();
+  return utc.add(const Duration(hours: 5, minutes: 30));
+}
 
 class _Header extends StatelessWidget {
   const _Header({
@@ -605,7 +898,7 @@ class _TrendGrid extends StatelessWidget {
   List<TrendPoint> _map(List<SensorReading> source, double? Function(SensorReading) selector) {
     return source
         .where((SensorReading r) => selector(r) != null)
-        .map((SensorReading r) => TrendPoint(r.displayTime, selector(r)!))
+        .map((SensorReading r) => TrendPoint(_toSriLanka(r.displayTime), selector(r)!))
         .toList();
   }
 

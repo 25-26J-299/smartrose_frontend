@@ -34,8 +34,8 @@ class SensorReading {
   final String? id;
   final String basestationId;
   final String? greenhouseId;
-  final DateTime timestamp; // localized to Sri Lanka (UTC+5:30)
-  final DateTime? receivedAt; // localized to Sri Lanka (UTC+5:30)
+  final DateTime timestamp; // UTC timestamp
+  final DateTime? receivedAt; // UTC timestamp
   final double temperature;
   final double humidity;
   final int? uvRaw;
@@ -51,18 +51,16 @@ class SensorReading {
     DateTime? parseDate(dynamic value) {
       if (value == null) return null;
       if (value is int) {
-        // seconds epoch
-        return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true)
-            .add(const Duration(hours: 5, minutes: 30));
+        // seconds epoch - keep as UTC
+        return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true);
       }
       if (value is num) {
-        return DateTime.fromMillisecondsSinceEpoch(value.toInt(), isUtc: true)
-            .add(const Duration(hours: 5, minutes: 30));
+        return DateTime.fromMillisecondsSinceEpoch(value.toInt(), isUtc: true);
       }
       if (value is String && value.isNotEmpty) {
         final DateTime? parsed = DateTime.tryParse(value);
         if (parsed != null) {
-          return parsed.toUtc().add(const Duration(hours: 5, minutes: 30));
+          return parsed.toUtc();
         }
       }
       return null;
@@ -82,7 +80,7 @@ class SensorReading {
     }
 
     final DateTime ts =
-        parseDate(json['timestamp']) ?? DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+        parseDate(json['timestamp']) ?? DateTime.now().toUtc();
 
     return SensorReading(
       id: (json['id'] ?? json['_id'])?.toString(),

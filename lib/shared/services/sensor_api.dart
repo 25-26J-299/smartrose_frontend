@@ -23,10 +23,21 @@ class SensorApi {
   Future<List<SensorReading>> fetchHistory({
     int limit = 100,
     String? sensorId,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
+    // Format date as YYYY-MM-DD using the date's year/month/day (no timezone conversion for date-only queries)
+    String? formatDate(DateTime? date) {
+      if (date == null) return null;
+      // Use the date's local year/month/day to avoid timezone shifts
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    }
+    
     final Map<String, String> query = <String, String>{
       'limit': '$limit',
       if (sensorId != null) 'basestationId': sensorId,
+      if (startDate != null) 'startDate': formatDate(startDate)!,
+      if (endDate != null) 'endDate': formatDate(endDate)!,
     };
     // Start of EOSM
     final Uri uri = _apiService.uri('/eosm-data/', query: query);
