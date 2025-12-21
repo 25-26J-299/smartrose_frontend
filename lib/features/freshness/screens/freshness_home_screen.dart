@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
@@ -12,7 +14,8 @@ class FreshnessHomeScreen extends StatefulWidget {
   State<FreshnessHomeScreen> createState() => _FreshnessHomeScreenState();
 }
 
-class _FreshnessHomeScreenState extends State<FreshnessHomeScreen> {
+class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
+    with WidgetsBindingObserver {
   final FreshnessApiService _apiService = FreshnessApiService();
   String _currentDeviceId = 'device_001';
 
@@ -21,23 +24,67 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen> {
   bool _isLoading = false;
   String? _errorMessage;
 
+  Timer? _autoRefreshTimer;
+  bool _isScreenVisible = true;
+
+  // Auto-refresh interval (30 seconds)
+  static const Duration _refreshInterval = Duration(seconds: 30);
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadFreshnessData(forceRefresh: true);
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopAutoRefresh();
     _apiService.dispose();
     super.dispose();
   }
 
-  Future<void> _loadFreshnessData({bool forceRefresh = true}) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Pause updates when app is in background, resume when in foreground
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _isScreenVisible = false;
+      _stopAutoRefresh();
+    } else if (state == AppLifecycleState.resumed) {
+      _isScreenVisible = true;
+      _loadFreshnessData(forceRefresh: true);
+      _startAutoRefresh();
+    }
+  }
+
+  void _startAutoRefresh() {
+    _stopAutoRefresh(); // Cancel any existing timer
+    _autoRefreshTimer = Timer.periodic(_refreshInterval, (_) {
+      if (_isScreenVisible && mounted && !_isLoading) {
+        _loadFreshnessData(forceRefresh: true, silent: true);
+      }
     });
+  }
+
+  void _stopAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = null;
+  }
+
+  Future<void> _loadFreshnessData({
+    bool forceRefresh = true,
+    bool silent = false,
+  }) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       // Fetch latest reading from database (sorted by timestamp descending)
@@ -55,39 +102,59 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen> {
         data['prediction'] as Map<String, dynamic>,
       );
 
-      setState(() {
-        _latestReading = reading;
-        _prediction = prediction;
-        _isLoading = false;
-      });
-    } on DioException catch (e) {
-      String errorMsg = e.error?.toString() ?? 'Failed to load freshness data';
+      // Only update state if data actually changed (for silent updates)
+      final bool hasChanged = silent
+          ? (_latestReading?.timestamp != reading.timestamp ||
+                _prediction?.freshnessScore != prediction.freshnessScore)
+          : true;
 
-      // Provide more helpful error messages
-      final statusCode = e.response?.statusCode;
-      if (statusCode == 404 ||
-          errorMsg.contains('404') ||
-          errorMsg.toLowerCase().contains('not found')) {
-        errorMsg =
-            'No data found for device "$_currentDeviceId". '
-            'Please ensure the device exists and has sensor readings.';
-      } else if (errorMsg.contains('Cannot connect') ||
-          errorMsg.contains('ERR_NAME_NOT_RESOLVED') ||
-          errorMsg.contains('Connection refused')) {
-        errorMsg =
-            'Cannot connect to backend server at http://localhost:8000. '
-            'Please ensure the backend is running.';
+      if (hasChanged) {
+        setState(() {
+          _latestReading = reading;
+          _prediction = prediction;
+          if (!silent) {
+            _isLoading = false;
+          }
+        });
+      } else if (!silent) {
+        setState(() {
+          _isLoading = false;
+        });
       }
+    } on DioException catch (e) {
+      // Only show errors for non-silent updates
+      if (!silent) {
+        String errorMsg =
+            e.error?.toString() ?? 'Failed to load freshness data';
 
-      setState(() {
-        _errorMessage = errorMsg;
-        _isLoading = false;
-      });
+        // Provide more helpful error messages
+        final statusCode = e.response?.statusCode;
+        if (statusCode == 404 ||
+            errorMsg.contains('404') ||
+            errorMsg.toLowerCase().contains('not found')) {
+          errorMsg =
+              'No data found for device "$_currentDeviceId". '
+              'Please ensure the device exists and has sensor readings.';
+        } else if (errorMsg.contains('Cannot connect') ||
+            errorMsg.contains('ERR_NAME_NOT_RESOLVED') ||
+            errorMsg.contains('Connection refused')) {
+          errorMsg =
+              'Cannot connect to backend server at http://localhost:8000. '
+              'Please ensure the backend is running.';
+        }
+
+        setState(() {
+          _errorMessage = errorMsg;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Unexpected error: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (!silent) {
+        setState(() {
+          _errorMessage = 'Unexpected error: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
