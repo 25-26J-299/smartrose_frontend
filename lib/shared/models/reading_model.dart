@@ -20,15 +20,40 @@ class ReadingModel {
   final int waterLevel;
 
   factory ReadingModel.fromJson(Map<String, dynamic> json) {
+    DateTime parseTimestamp(dynamic timestampValue) {
+      if (timestampValue is String) {
+        final parsed = DateTime.parse(timestampValue);
+        // If the string doesn't have timezone info, assume it's UTC
+        // (backend typically sends UTC timestamps)
+        if (!timestampValue.endsWith('Z') &&
+            !timestampValue.contains('+') &&
+            !timestampValue.contains('-', 10)) {
+          return DateTime.utc(
+            parsed.year,
+            parsed.month,
+            parsed.day,
+            parsed.hour,
+            parsed.minute,
+            parsed.second,
+            parsed.millisecond,
+            parsed.microsecond,
+          );
+        }
+        return parsed;
+      } else if (timestampValue is num) {
+        // Unix timestamp in seconds, convert to milliseconds and parse as UTC
+        return DateTime.fromMillisecondsSinceEpoch(
+          (timestampValue.toInt() * 1000),
+          isUtc: true,
+        );
+      }
+      throw FormatException('Invalid timestamp format: $timestampValue');
+    }
+
     return ReadingModel(
       id: json['_id'] as String?,
       deviceId: json['device_id'] as String,
-      timestamp: json['timestamp'] is String
-          ? DateTime.parse(json['timestamp'] as String)
-          : DateTime.fromMillisecondsSinceEpoch(
-              (json['timestamp'] as num).toInt() * 1000,
-              isUtc: true,
-            ),
+      timestamp: parseTimestamp(json['timestamp']),
       temperature: (json['temperature'] as num).toDouble(),
       humidity: (json['humidity'] as num).toDouble(),
       gasValue: (json['gas_value'] as num).toDouble(),

@@ -635,10 +635,10 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
   }
 
   String _formatTimestamp(DateTime timestamp) {
-    // Use UTC for comparison to avoid timezone issues
-    final now = DateTime.now().toUtc();
-    final timestampUtc = timestamp.isUtc ? timestamp : timestamp.toUtc();
-    final difference = now.difference(timestampUtc);
+    // Convert timestamp to local time for user-friendly display
+    final now = DateTime.now();
+    final timestampLocal = timestamp.isUtc ? timestamp.toLocal() : timestamp;
+    final difference = now.difference(timestampLocal);
 
     // Handle negative differences (future timestamps)
     if (difference.isNegative) {
