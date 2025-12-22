@@ -15,9 +15,18 @@ class INMService {
   /// Returns a map with 'success', 'data', and 'error' keys
   Future<Map<String, dynamic>> fetchSensorReadings() async {
     try {
-      debugPrint('🔄 Fetching sensor data from: $baseUrl');
+      // Add timestamp to prevent caching and always get fresh data
+      final String urlWithCacheBust = '$baseUrl?_t=${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint('🔄 Fetching sensor data from: $urlWithCacheBust');
       
-      final response = await http.get(Uri.parse(baseUrl));
+      final response = await http.get(
+        Uri.parse(urlWithCacheBust),
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      );
 
       debugPrint('📡 Response status: ${response.statusCode}');
       debugPrint('📦 Response body: ${response.body}');

@@ -42,8 +42,9 @@ class InmHistoryTable extends StatelessWidget {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Table header
           Padding(
@@ -82,131 +83,144 @@ class InmHistoryTable extends StatelessWidget {
           
           const Divider(height: 1),
           
-          // Scrollable table
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(
-                theme.colorScheme.primary.withOpacity(0.05),
-              ),
-              headingTextStyle: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-              ),
-              dataTextStyle: theme.textTheme.bodyMedium,
-              columnSpacing: 16,
-              horizontalMargin: 16,
-              columns: const [
-                DataColumn(label: Text('Date & Time')),
-                DataColumn(label: Text('Device')),
-                DataColumn(label: Text('Air Temp\n(°C)'), numeric: true),
-                DataColumn(label: Text('Air Hum\n(%)'), numeric: true),
-                DataColumn(label: Text('Soil Temp\n(°C)'), numeric: true),
-                DataColumn(label: Text('Soil Moist\n(%)'), numeric: true),
-                DataColumn(label: Text('EC'), numeric: true),
-                DataColumn(label: Text('pH'), numeric: true),
-                DataColumn(label: Text('N'), numeric: true),
-                DataColumn(label: Text('P'), numeric: true),
-                DataColumn(label: Text('K'), numeric: true),
-              ],
-              rows: readings.map((reading) {
-                return DataRow(
-                  cells: [
-                    // Date & Time
-                    DataCell(
-                      Text(
-                        reading.formattedTime,
-                        style: const TextStyle(fontSize: 12),
-                      ),
+          // Scrollable table - horizontal scroll with constrained width
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: constraints.maxWidth,
+                  ),
+                  child: DataTable(
+                    headingRowColor: WidgetStateProperty.all(
+                      theme.colorScheme.primary.withOpacity(0.05),
                     ),
-                    // Device ID
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.secondary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          reading.deviceId,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                            color: theme.colorScheme.secondary,
+                    headingTextStyle: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                    dataTextStyle: theme.textTheme.bodySmall,
+                    columnSpacing: 12,
+                    horizontalMargin: 12,
+                    dataRowMinHeight: 40,
+                    dataRowMaxHeight: 48,
+                    headingRowHeight: 48,
+                    columns: const [
+                      DataColumn(label: Text('Date & Time')),
+                      DataColumn(label: Text('Device')),
+                      DataColumn(label: Text('Air °C'), numeric: true),
+                      DataColumn(label: Text('Air %'), numeric: true),
+                      DataColumn(label: Text('Soil °C'), numeric: true),
+                      DataColumn(label: Text('Soil %'), numeric: true),
+                      DataColumn(label: Text('EC'), numeric: true),
+                      DataColumn(label: Text('pH'), numeric: true),
+                      DataColumn(label: Text('N'), numeric: true),
+                      DataColumn(label: Text('P'), numeric: true),
+                      DataColumn(label: Text('K'), numeric: true),
+                    ],
+                    rows: readings.map((reading) {
+                      return DataRow(
+                        cells: [
+                          // Date & Time
+                          DataCell(
+                            Text(
+                              reading.formattedTime,
+                              style: const TextStyle(fontSize: 11),
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                    // Air Temperature
-                    DataCell(
-                      _ValueCell(
-                        value: reading.airTemp.toStringAsFixed(1),
-                        color: _getTempColor(reading.airTemp),
-                      ),
-                    ),
-                    // Air Humidity
-                    DataCell(
-                      _ValueCell(
-                        value: reading.airHum.toStringAsFixed(1),
-                        color: _getHumidityColor(reading.airHum),
-                      ),
-                    ),
-                    // Soil Temperature
-                    DataCell(
-                      _ValueCell(
-                        value: reading.soilTemp.toStringAsFixed(1),
-                        color: _getTempColor(reading.soilTemp),
-                      ),
-                    ),
-                    // Soil Moisture
-                    DataCell(
-                      _ValueCell(
-                        value: reading.soilMoisture.toStringAsFixed(1),
-                        color: _getSoilMoistureColor(reading.soilMoisture),
-                      ),
-                    ),
-                    // EC
-                    DataCell(
-                      _ValueCell(
-                        value: reading.ec.toStringAsFixed(2),
-                        color: Colors.purple,
-                      ),
-                    ),
-                    // pH
-                    DataCell(
-                      _ValueCell(
-                        value: reading.ph.toStringAsFixed(2),
-                        color: _getPhColor(reading.ph),
-                      ),
-                    ),
-                    // Nitrogen
-                    DataCell(
-                      _ValueCell(
-                        value: reading.nitrogen.toStringAsFixed(1),
-                        color: Colors.green,
-                      ),
-                    ),
-                    // Phosphorus
-                    DataCell(
-                      _ValueCell(
-                        value: reading.phosphorus.toStringAsFixed(1),
-                        color: Colors.amber.shade700,
-                      ),
-                    ),
-                    // Potassium
-                    DataCell(
-                      _ValueCell(
-                        value: reading.potassium.toStringAsFixed(1),
-                        color: Colors.pink,
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
+                          // Device ID
+                          DataCell(
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.secondary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                reading.deviceId,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: theme.colorScheme.secondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Air Temperature
+                          DataCell(
+                            _ValueCell(
+                              value: reading.airTemp.toStringAsFixed(1),
+                              color: _getTempColor(reading.airTemp),
+                            ),
+                          ),
+                          // Air Humidity
+                          DataCell(
+                            _ValueCell(
+                              value: reading.airHum.toStringAsFixed(1),
+                              color: _getHumidityColor(reading.airHum),
+                            ),
+                          ),
+                          // Soil Temperature
+                          DataCell(
+                            _ValueCell(
+                              value: reading.soilTemp.toStringAsFixed(1),
+                              color: _getTempColor(reading.soilTemp),
+                            ),
+                          ),
+                          // Soil Moisture
+                          DataCell(
+                            _ValueCell(
+                              value: reading.soilMoisture.toStringAsFixed(1),
+                              color: _getSoilMoistureColor(reading.soilMoisture),
+                            ),
+                          ),
+                          // EC
+                          DataCell(
+                            _ValueCell(
+                              value: reading.ec.toStringAsFixed(1),
+                              color: Colors.purple,
+                            ),
+                          ),
+                          // pH
+                          DataCell(
+                            _ValueCell(
+                              value: reading.ph.toStringAsFixed(2),
+                              color: _getPhColor(reading.ph),
+                            ),
+                          ),
+                          // Nitrogen
+                          DataCell(
+                            _ValueCell(
+                              value: reading.nitrogen.toStringAsFixed(0),
+                              color: Colors.green,
+                            ),
+                          ),
+                          // Phosphorus
+                          DataCell(
+                            _ValueCell(
+                              value: reading.phosphorus.toStringAsFixed(0),
+                              color: Colors.amber.shade700,
+                            ),
+                          ),
+                          // Potassium
+                          DataCell(
+                            _ValueCell(
+                              value: reading.potassium.toStringAsFixed(0),
+                              color: Colors.pink,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -250,15 +264,15 @@ class _ValueCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         value,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
           color: color.withOpacity(0.9),
         ),

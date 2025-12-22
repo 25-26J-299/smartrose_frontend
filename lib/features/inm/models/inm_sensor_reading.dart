@@ -34,7 +34,7 @@ class InmSensorReading {
     return InmSensorReading(
       id: json['_id']?.toString() ?? '',
       deviceId: json['device_id']?.toString() ?? 'unknown',
-      timestamp: DateTime.tryParse(json['timestamp'] ?? ''),
+      timestamp: _parseTimestamp(json['timestamp']),
       soilMoisture: _parseDouble(json['soil_moisture']),
       soilTemp: _parseDouble(json['soil_temp']),
       airTemp: _parseDouble(json['air_temp']),
@@ -44,6 +44,42 @@ class InmSensorReading {
       nitrogen: _parseDouble(json['N']),
       phosphorus: _parseDouble(json['P']),
       potassium: _parseDouble(json['K']),
+    );
+  }
+
+  /// Parse timestamp - backend stores UTC, convert to Sri Lanka Time (UTC+5:30)
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value == null) return null;
+    
+    final String timestampStr = value.toString();
+    if (timestampStr.isEmpty) return null;
+    
+    // Parse timestamp - treat as UTC if no timezone specified
+    DateTime? utcTime;
+    
+    if (timestampStr.endsWith('Z') || RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(timestampStr)) {
+      // Already has timezone info
+      utcTime = DateTime.tryParse(timestampStr)?.toUtc();
+    } else {
+      // No timezone - backend stores UTC without 'Z', parse as UTC
+      utcTime = DateTime.tryParse('${timestampStr}Z');
+    }
+    
+    if (utcTime == null) return null;
+    
+    // Convert UTC to Sri Lanka Time (UTC+5:30)
+    final sriLankaTime = utcTime.add(const Duration(hours: 5, minutes: 30));
+    
+    // Return as local DateTime with Sri Lanka time values
+    return DateTime(
+      sriLankaTime.year,
+      sriLankaTime.month,
+      sriLankaTime.day,
+      sriLankaTime.hour,
+      sriLankaTime.minute,
+      sriLankaTime.second,
+      sriLankaTime.millisecond,
+      sriLankaTime.microsecond,
     );
   }
 
@@ -59,9 +95,12 @@ class InmSensorReading {
   String get timeAgo {
     if (timestamp == null) return 'Unknown time';
     
-    final Duration diff = DateTime.now().difference(timestamp!.toLocal());
+    // timestamp is already converted to local time
+    final Duration diff = DateTime.now().difference(timestamp!);
     
-    if (diff.inSeconds < 60) {
+    if (diff.inSeconds < 0) {
+      return 'Just now';
+    } else if (diff.inSeconds < 60) {
       return '${diff.inSeconds} seconds ago';
     } else if (diff.inMinutes < 60) {
       return '${diff.inMinutes} minute${diff.inMinutes == 1 ? '' : 's'} ago';
@@ -72,17 +111,17 @@ class InmSensorReading {
     }
   }
 
-  /// Returns formatted local time string
+  /// Returns formatted local time string (timestamp already converted to local)
   String get formattedTime {
     if (timestamp == null) return 'No timestamp';
     
-    final local = timestamp!.toLocal();
-    final hour = local.hour.toString().padLeft(2, '0');
-    final minute = local.minute.toString().padLeft(2, '0');
-    final day = local.day.toString().padLeft(2, '0');
-    final month = local.month.toString().padLeft(2, '0');
-    final year = local.year;
-    return '$day/$month/$year $hour:$minute';
+    final hour = timestamp!.hour.toString().padLeft(2, '0');
+    final minute = timestamp!.minute.toString().padLeft(2, '0');
+    final second = timestamp!.second.toString().padLeft(2, '0');
+    final day = timestamp!.day.toString().padLeft(2, '0');
+    final month = timestamp!.month.toString().padLeft(2, '0');
+    final year = timestamp!.year;
+    return '$day/$month/$year $hour:$minute:$second';
   }
 }
 
