@@ -47,40 +47,53 @@ class InmSensorReading {
     );
   }
 
-  /// Parse timestamp - backend stores UTC, convert to Sri Lanka Time (UTC+5:30)
+  /// Parse timestamp - backend already stores Sri Lanka Time
   static DateTime? _parseTimestamp(dynamic value) {
     if (value == null) return null;
     
-    final String timestampStr = value.toString();
+    String timestampStr = value.toString().trim();
     if (timestampStr.isEmpty) return null;
     
-    // Parse timestamp - treat as UTC if no timezone specified
-    DateTime? utcTime;
+    // Fix malformed timestamps like "2025-12-28T10:0:14Z" -> "2025-12-28T10:00:14Z"
+    timestampStr = _normalizeTimestamp(timestampStr);
     
-    if (timestampStr.endsWith('Z') || RegExp(r'[+-]\d{2}:\d{2}$').hasMatch(timestampStr)) {
-      // Already has timezone info
-      utcTime = DateTime.tryParse(timestampStr)?.toUtc();
-    } else {
-      // No timezone - backend stores UTC without 'Z', parse as UTC
-      utcTime = DateTime.tryParse('${timestampStr}Z');
+    // Remove 'Z' suffix if present - backend stores Sri Lanka time, not UTC
+    if (timestampStr.endsWith('Z')) {
+      timestampStr = timestampStr.substring(0, timestampStr.length - 1);
     }
     
-    if (utcTime == null) return null;
+    // Parse as local time (backend already stores Sri Lanka time)
+    final parsedTime = DateTime.tryParse(timestampStr);
+    if (parsedTime == null) return null;
     
-    // Convert UTC to Sri Lanka Time (UTC+5:30)
-    final sriLankaTime = utcTime.add(const Duration(hours: 5, minutes: 30));
-    
-    // Return as local DateTime with Sri Lanka time values
+    // Return as local DateTime with Sri Lanka time values (no conversion needed)
     return DateTime(
-      sriLankaTime.year,
-      sriLankaTime.month,
-      sriLankaTime.day,
-      sriLankaTime.hour,
-      sriLankaTime.minute,
-      sriLankaTime.second,
-      sriLankaTime.millisecond,
-      sriLankaTime.microsecond,
+      parsedTime.year,
+      parsedTime.month,
+      parsedTime.day,
+      parsedTime.hour,
+      parsedTime.minute,
+      parsedTime.second,
+      parsedTime.millisecond,
+      parsedTime.microsecond,
     );
+  }
+
+  /// Normalize malformed timestamps (e.g., "10:0:14" -> "10:00:14")
+  static String _normalizeTimestamp(String ts) {
+    // Match time parts and pad with zeros if needed
+    // Pattern: T followed by H:M:S where H, M, S might be single digits
+    final timeMatch = RegExp(r'T(\d{1,2}):(\d{1,2}):(\d{1,2})').firstMatch(ts);
+    if (timeMatch != null) {
+      final hour = timeMatch.group(1)!.padLeft(2, '0');
+      final minute = timeMatch.group(2)!.padLeft(2, '0');
+      final second = timeMatch.group(3)!.padLeft(2, '0');
+      ts = ts.replaceFirst(
+        timeMatch.group(0)!,
+        'T$hour:$minute:$second',
+      );
+    }
+    return ts;
   }
 
   static double _parseDouble(dynamic value) {
@@ -91,12 +104,27 @@ class InmSensorReading {
     return 0.0;
   }
 
-  /// Returns a human-readable "X minutes ago" string
+  /// Get current time in Sri Lanka (UTC+5:30)
+  static DateTime get _sriLankaNow {
+    final utcNow = DateTime.now().toUtc();
+    final sriLankaTime = utcNow.add(const Duration(hours: 5, minutes: 30));
+    return DateTime(
+      sriLankaTime.year,
+      sriLankaTime.month,
+      sriLankaTime.day,
+      sriLankaTime.hour,
+      sriLankaTime.minute,
+      sriLankaTime.second,
+      sriLankaTime.millisecond,
+    );
+  }
+
+  /// Returns a human-readable "X minutes ago" string (based on Sri Lanka time)
   String get timeAgo {
     if (timestamp == null) return 'Unknown time';
     
-    // timestamp is already converted to local time
-    final Duration diff = DateTime.now().difference(timestamp!);
+    // Compare with current Sri Lanka time
+    final Duration diff = _sriLankaNow.difference(timestamp!);
     
     if (diff.inSeconds < 0) {
       return 'Just now';
@@ -111,7 +139,7 @@ class InmSensorReading {
     }
   }
 
-  /// Returns formatted local time string (timestamp already converted to local)
+  /// Returns formatted Sri Lanka time string
   String get formattedTime {
     if (timestamp == null) return 'No timestamp';
     
@@ -122,6 +150,18 @@ class InmSensorReading {
     final month = timestamp!.month.toString().padLeft(2, '0');
     final year = timestamp!.year;
     return '$day/$month/$year $hour:$minute:$second';
+  }
+
+  /// Returns formatted Sri Lanka time string with timezone indicator
+  String get formattedTimeWithZone {
+    if (timestamp == null) return 'No timestamp';
+    
+    final hour = timestamp!.hour.toString().padLeft(2, '0');
+    final minute = timestamp!.minute.toString().padLeft(2, '0');
+    final day = timestamp!.day.toString().padLeft(2, '0');
+    final month = timestamp!.month.toString().padLeft(2, '0');
+    final year = timestamp!.year;
+    return '$day/$month/$year $hour:$minute (SLT)';
   }
 }
 
