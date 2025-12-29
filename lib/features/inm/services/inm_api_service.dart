@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/inm_sensor_reading.dart';
+import '../models/inm_status.dart';
 
 class InmApiService {
   // Base URL for the backend API
@@ -92,6 +93,48 @@ class InmApiService {
   Future<InmSensorReading?> fetchLatestReading() async {
     final readings = await fetchAllReadings();
     return readings.isNotEmpty ? readings.first : null;
+  }
+
+  /// Fetches the current INM status with EC values and recommendation
+  Future<InmStatus> fetchStatus() async {
+    final String url = '$_baseUrl/status?_t=${DateTime.now().millisecondsSinceEpoch}';
+    
+    try {
+      debugPrint('🔄 INM: Fetching status from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      );
+
+      debugPrint('📡 INM: Status response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        
+        // Handle wrapped response format
+        Map<String, dynamic> statusData;
+        if (decoded is Map<String, dynamic>) {
+          statusData = decoded['data'] ?? decoded;
+        } else {
+          throw Exception('Invalid response format');
+        }
+        
+        final status = InmStatus.fromJson(statusData);
+        debugPrint('✅ INM: Status fetched - EC: ${status.currentEc}, Predicted: ${status.predictedEc24h}');
+        return status;
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ INM: Exception fetching status: $e');
+      rethrow;
+    }
   }
 }
 
