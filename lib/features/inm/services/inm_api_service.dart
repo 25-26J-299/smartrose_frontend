@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/inm_sensor_reading.dart';
+import '../models/inm_status.dart';
 
 class InmApiService {
   // Base URL for the backend API
@@ -14,14 +15,20 @@ class InmApiService {
   /// Fetches all sensor readings from the backend
   /// Returns a list of [InmSensorReading] sorted by timestamp (newest first)
   Future<List<InmSensorReading>> fetchAllReadings() async {
-    final String url = '$_baseUrl/sensor-data';
+    // Fetch all data - add cache-busting timestamp
+    final String url = '$_baseUrl/sensor-data?_t=${DateTime.now().millisecondsSinceEpoch}';
     
     try {
       debugPrint('🔄 INM: Fetching sensor data from: $url');
       
       final response = await http.get(
         Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
       );
 
       debugPrint('📡 INM: Response status: ${response.statusCode}');
@@ -42,6 +49,16 @@ class InmApiService {
                      [decoded];
         }
 
+        debugPrint('📊 INM: Received ${dataList.length} records from backend');
+
+        // Debug: Print first and last raw timestamps
+        if (dataList.isNotEmpty) {
+          final firstItem = dataList.first as Map<String, dynamic>;
+          final lastItem = dataList.last as Map<String, dynamic>;
+          debugPrint('🕐 INM: First record timestamp: "${firstItem['timestamp']}"');
+          debugPrint('🕐 INM: Last record timestamp: "${lastItem['timestamp']}"');
+        }
+
         // Parse readings
         final readings = dataList
             .map((json) => InmSensorReading.fromJson(json as Map<String, dynamic>))
@@ -55,7 +72,13 @@ class InmApiService {
           return b.timestamp!.compareTo(a.timestamp!);
         });
 
-        debugPrint('✅ INM: Successfully fetched ${readings.length} readings');
+        // Debug: Print newest and oldest after sorting
+        if (readings.isNotEmpty) {
+          debugPrint('✅ INM: After sorting - Newest: ${readings.first.formattedTime}');
+          debugPrint('✅ INM: After sorting - Oldest: ${readings.last.formattedTime}');
+        }
+
+        debugPrint('✅ INM: Total ${readings.length} readings ready');
         return readings;
       } else {
         throw Exception('Server error: ${response.statusCode}');
@@ -70,6 +93,48 @@ class InmApiService {
   Future<InmSensorReading?> fetchLatestReading() async {
     final readings = await fetchAllReadings();
     return readings.isNotEmpty ? readings.first : null;
+  }
+
+  /// Fetches the current INM status with EC values and recommendation
+  Future<InmStatus> fetchStatus() async {
+    final String url = '$_baseUrl/status?_t=${DateTime.now().millisecondsSinceEpoch}';
+    
+    try {
+      debugPrint('🔄 INM: Fetching status from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      );
+
+      debugPrint('📡 INM: Status response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final dynamic decoded = jsonDecode(response.body);
+        
+        // Handle wrapped response format
+        Map<String, dynamic> statusData;
+        if (decoded is Map<String, dynamic>) {
+          statusData = decoded['data'] ?? decoded;
+        } else {
+          throw Exception('Invalid response format');
+        }
+        
+        final status = InmStatus.fromJson(statusData);
+        debugPrint('✅ INM: Status fetched - EC: ${status.currentEc}, Predicted: ${status.predictedEc24h}');
+        return status;
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('❌ INM: Exception fetching status: $e');
+      rethrow;
+    }
   }
 }
 
