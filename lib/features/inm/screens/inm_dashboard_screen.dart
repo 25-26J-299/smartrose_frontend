@@ -8,6 +8,7 @@ import '../models/inm_sensor_reading.dart';
 import '../services/inm_api_service.dart';
 import '../widgets/inm_latest_card.dart';
 import '../widgets/inm_history_table.dart';
+import '../widgets/inm_status_card.dart';
 
 class InmDashboardScreen extends StatefulWidget {
   const InmDashboardScreen({super.key});
@@ -34,10 +35,9 @@ class _InmDashboardScreenState extends State<InmDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Default to today's data
-    final now = DateTime.now();
-    _startDate = DateTime(now.year, now.month, now.day);
-    _endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    // Default to "All Time" - show all history records
+    _startDate = null;
+    _endDate = null;
     _loadSensorData();
     _startAutoRefresh();
   }
@@ -96,8 +96,14 @@ class _InmDashboardScreenState extends State<InmDashboardScreen> {
     
     final history = _allReadings.sublist(1);
     
+    // If no date filter, return all history
+    if (_startDate == null && _endDate == null) {
+      debugPrint('📋 INM History: No filter, showing all ${history.length} records');
+      return history;
+    }
+    
     // Filter by date range
-    return history.where((reading) {
+    final filtered = history.where((reading) {
       if (reading.timestamp == null) return false;
       
       final timestamp = reading.timestamp!;
@@ -110,6 +116,9 @@ class _InmDashboardScreenState extends State<InmDashboardScreen> {
       }
       return true;
     }).toList();
+    
+    debugPrint('📋 INM History: Filter applied, showing ${filtered.length}/${history.length} records');
+    return filtered;
   }
 
   Future<void> _selectStartDate() async {
@@ -315,20 +324,24 @@ class _InmDashboardScreenState extends State<InmDashboardScreen> {
       );
     }
 
-    // Data state - show latest card and history table
+    // Data state - show status, latest card and history table
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Section 1: Latest Sensor Readings Card
+          // Section 1: INM Status Card (EC values & recommendation)
+          const InmStatusCard(),
+          const SizedBox(height: 24),
+          
+          // Section 2: Latest Sensor Readings Card
           if (_latestReading != null) ...[
             InmLatestCard(reading: _latestReading!),
             const SizedBox(height: 24),
           ],
 
-          // Section 2: Date Range Filter
+          // Section 3: Date Range Filter
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -499,7 +512,7 @@ class _InmDashboardScreenState extends State<InmDashboardScreen> {
           
           const SizedBox(height: 16),
 
-          // Section 3: Sensor History Table
+          // Section 4: Sensor History Table
           InmHistoryTable(readings: _historyReadings),
           
           const SizedBox(height: 16),
