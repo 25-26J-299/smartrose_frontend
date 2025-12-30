@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/app_routes.dart';
-import '../../shared/widgets/dashboard_card.dart';
-import '../shared/services/freshness_api_service.dart';
-import '../shared/models/prediction_model.dart';
+import '../../core/auth/auth_state.dart';
+import '../shared/models/weather_model.dart';
+import '../shared/services/weather_api_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,46 +18,43 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
-  final FreshnessApiService _freshnessApiService = FreshnessApiService();
-
-  // TODO: make device ID configurable from app-wide settings if needed.
-  String _currentDeviceId = 'device_001';
-
-  PredictionModel? _prediction;
-  bool _isFreshnessLoading = false;
-  String? _freshnessError;
-
   Timer? _autoRefreshTimer;
-  bool _isScreenVisible = true;
+  final WeatherApiService _weatherApiService = WeatherApiService();
+  final TextEditingController _searchController = TextEditingController();
 
-  // Auto-refresh interval (30 seconds)
-  static const Duration _refreshInterval = Duration(seconds: 30);
+  WeatherModel? _weather;
+  bool _isWeatherLoading = false;
+  String? _weatherError;
+  String _searchQuery = '';
 
-  static final List<_DashboardEntry> _entries = <_DashboardEntry>[
-    _DashboardEntry(
-      title: 'INM Sensors',
-      subtitle:
-          'View real-time sensor readings for temperature, humidity & soil.',
-      icon: Icons.sensors,
+  static final List<_ComponentCard> _components = <_ComponentCard>[
+    _ComponentCard(
+      name: 'Intelligent Nutrition Management',
+      icon: Icons.eco_rounded,
       route: AppRoutes.inmSensors,
+      status: ComponentStatus.normal,
+      accentColor: const Color(0xFF4CAF50),
     ),
-    _DashboardEntry(
-      title: 'Freshness Monitoring',
-      subtitle: 'Track bloom quality with live freshness insights.',
-      icon: Icons.local_florist,
-      route: AppRoutes.freshness,
-    ),
-    _DashboardEntry(
-      title: 'Stress Monitoring',
-      subtitle: 'Detect environmental stressors early.',
-      icon: Icons.monitor_heart,
-      route: AppRoutes.stress,
-    ),
-    _DashboardEntry(
-      title: 'Disease Detection',
-      subtitle: 'Identify disease risks with ML-assisted insights.',
-      icon: Icons.bug_report,
+    _ComponentCard(
+      name: 'Disease Detection',
+      icon: Icons.bug_report_rounded,
       route: AppRoutes.disease,
+      status: ComponentStatus.warning,
+      accentColor: const Color(0xFFFFB300),
+    ),
+    _ComponentCard(
+      name: 'Environmental Monitoring',
+      icon: Icons.sensors_rounded,
+      route: AppRoutes.stress,
+      status: ComponentStatus.normal,
+      accentColor: const Color(0xFF42A5F5),
+    ),
+    _ComponentCard(
+      name: 'Freshness Monitoring',
+      icon: Icons.local_florist_rounded,
+      route: AppRoutes.freshness,
+      status: ComponentStatus.normal,
+      accentColor: const Color(0xFFE91E63),
     ),
   ];
 
@@ -63,7 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadFreshnessSummary();
+    _loadWeather();
     _startAutoRefresh();
   }
 
@@ -71,7 +70,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _stopAutoRefresh();
-    _freshnessApiService.dispose();
+    _weatherApiService.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -81,22 +81,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     // Pause updates when app is in background, resume when in foreground
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      _isScreenVisible = false;
       _stopAutoRefresh();
     } else if (state == AppLifecycleState.resumed) {
-      _isScreenVisible = true;
-      _loadFreshnessSummary(forceRefresh: true);
       _startAutoRefresh();
     }
   }
 
   void _startAutoRefresh() {
     _stopAutoRefresh(); // Cancel any existing timer
-    _autoRefreshTimer = Timer.periodic(_refreshInterval, (_) {
-      if (_isScreenVisible && mounted && !_isFreshnessLoading) {
-        _loadFreshnessSummary(forceRefresh: true, silent: true);
-      }
-    });
+    // Auto-refresh can be implemented here if needed
   }
 
   void _stopAutoRefresh() {
@@ -104,112 +97,51 @@ class _DashboardScreenState extends State<DashboardScreen>
     _autoRefreshTimer = null;
   }
 
-  Future<void> _loadFreshnessSummary({
-    bool forceRefresh = true,
-    bool silent = false,
-  }) async {
-    if (!silent) {
-      setState(() {
-        _isFreshnessLoading = true;
-        _freshnessError = null;
-      });
-    }
-
-    try {
-      final Map<String, dynamic> data = await _freshnessApiService
-          .getLatestWithPrediction(
-            _currentDeviceId,
-            forceRefresh: forceRefresh,
-          );
-
-      final PredictionModel prediction = PredictionModel.fromJson(
-        data['prediction'] as Map<String, dynamic>,
-      );
-
-      // Only update state if data actually changed (for silent updates)
-      final bool hasChanged = silent
-          ? (_prediction?.freshnessScore != prediction.freshnessScore ||
-                _prediction?.vaseLifeHours != prediction.vaseLifeHours)
-          : true;
-
-      if (hasChanged) {
-        setState(() {
-          _prediction = prediction;
-          if (!silent) {
-            _isFreshnessLoading = false;
-          }
-        });
-      } else if (!silent) {
-        setState(() {
-          _isFreshnessLoading = false;
-        });
-      }
-    } catch (e) {
-      // Only show errors for non-silent updates
-      if (!silent) {
-        setState(() {
-          _freshnessError = 'Failed to load freshness summary';
-          _isFreshnessLoading = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final bool isWide = constraints.maxWidth >= 700;
-        final bool isUltraWide = constraints.maxWidth >= 1100;
-        final int crossAxisCount = isUltraWide
-            ? 3
-            : isWide
-            ? 2
-            : 1;
-
         final ColorScheme scheme = Theme.of(context).colorScheme;
 
-        return RefreshIndicator(
-          onRefresh: () => _loadFreshnessSummary(forceRefresh: true),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.symmetric(
-              horizontal: constraints.maxWidth < 400 ? 12 : 16,
-              vertical: 16,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                _buildFreshnessSummaryCard(scheme),
-                const SizedBox(height: 16),
-                LayoutBuilder(
-                  builder: (BuildContext context, BoxConstraints constraints) {
-                    // Adjust aspect ratio for smaller screens
-                    final double aspectRatio = constraints.maxWidth < 400
-                        ? 0.9
-                        : isWide
-                            ? 1.4
-                            : 1.1;
-                    return GridView.count(
-                      crossAxisCount: crossAxisCount,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      childAspectRatio: aspectRatio,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: _entries
-                          .map(
-                            (_DashboardEntry entry) => DashboardCard(
-                              title: entry.title,
-                              subtitle: entry.subtitle,
-                              icon: entry.icon,
-                              onTap: () =>
-                                  Navigator.of(context).pushNamed(entry.route),
-                            ),
-                          )
-                          .toList(),
-                    );
-                  },
+        return Container(
+          color: const Color(0xFFF5F5F5), // Light neutral grey background
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await _loadWeather();
+            },
+            color: scheme.primary,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      _buildGreetingHeader(context, scheme),
+                      const SizedBox(height: 16),
+                      _buildSearchBar(context, scheme),
+                      const SizedBox(height: 20),
+                      _buildWeatherCard(context, scheme),
+                      const SizedBox(height: 24),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: constraints.maxWidth < 400 ? 16 : 20,
+                        ),
+                        child: _buildSectionTitle(
+                          'SmartRose Components',
+                          scheme,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: constraints.maxWidth < 400 ? 16 : 20,
+                        ),
+                        child: _buildComponentCards(context, scheme),
+                      ),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -219,195 +151,507 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildFreshnessSummaryCard(ColorScheme scheme) {
-    if (_isFreshnessLoading) {
-      return Card(
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: <Widget>[
-              const CircularProgressIndicator(),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  'Loading freshness summary...',
-                  style: TextStyle(color: scheme.onSurfaceVariant),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good Morning';
+    } else if (hour < 17) {
+      return 'Good Afternoon';
+    } else {
+      return 'Good Evening';
     }
+  }
 
-    if (_freshnessError != null) {
-      return Card(
-        elevation: 2,
-        color: scheme.errorContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Icon(Icons.error_outline, color: scheme.onErrorContainer),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Freshness summary unavailable',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: scheme.onErrorContainer,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _freshnessError!,
-                      style: TextStyle(color: scheme.onErrorContainer),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: () =>
-                          _loadFreshnessSummary(forceRefresh: true),
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: scheme.onErrorContainer,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+  Widget _buildGreetingHeader(BuildContext context, ColorScheme scheme) {
+    final AuthState authState = context.watch<AuthState>();
+    final String userName = authState.user?.name ?? 'User';
+    final String greeting = _getGreeting();
+    final String todayDate = DateFormat(
+      'EEEE, dd MMM yyyy',
+    ).format(DateTime.now());
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [scheme.primary, scheme.secondary],
         ),
-      );
-    }
-
-    if (_prediction == null) {
-      return Card(
-        elevation: 2,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withValues(alpha: 0.3),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        bottom: false,
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
+            children: [
               Row(
-                children: <Widget>[
-                  Icon(Icons.local_florist, color: scheme.primary),
-                  const SizedBox(width: 8),
+                children: [
                   Expanded(
-                    child: Text(
-                      'Freshness Overview',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: scheme.onSurface,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hello, $greeting',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          todayDate,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Profile Avatar
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                        width: 2,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                    child: Center(
+                      child: Text(
+                        userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                'No freshness data available yet for $_currentDeviceId.',
-                style: TextStyle(color: scheme.onSurfaceVariant),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext context, ColorScheme scheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Search components…',
+            hintStyle: TextStyle(
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+              fontSize: 16,
+            ),
+            prefixIcon: Icon(
+              Icons.search_rounded,
+              color: scheme.primary,
+              size: 24,
+            ),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear_rounded,
+                      color: scheme.primary,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                      });
+                    },
+                  )
+                : IconButton(
+                    icon: Icon(
+                      Icons.mic_rounded,
+                      color: scheme.primary,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      // Voice search functionality
+                    },
+                  ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 16,
+            ),
+          ),
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value.toLowerCase().trim();
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadWeather() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isWeatherLoading = true;
+      _weatherError = null;
+    });
+
+    try {
+      final WeatherModel? weather = await _weatherApiService
+          .fetchCurrentWeather();
+      if (mounted) {
+        setState(() {
+          _weather = weather;
+          _isWeatherLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _weatherError = 'Failed to load weather data';
+          _isWeatherLoading = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildWeatherCard(BuildContext context, ColorScheme scheme) {
+    if (_isWeatherLoading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
               ),
+            ],
+          ),
+          child: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: CircularProgressIndicator(),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_weatherError != null || _weather == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 20,
+                spreadRadius: 0,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              Icon(
+                Icons.cloud_off_rounded,
+                size: 48,
+                color: scheme.onSurfaceVariant,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Weather data unavailable',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextButton(onPressed: _loadWeather, child: const Text('Retry')),
             ],
           ),
         ),
       );
     }
 
-    final double score = _prediction!.freshnessScore;
-    final double vaseLifeHours = _prediction!.vaseLifeHours;
-    final _StatusInfo status = _getStatusInfo(score, scheme);
+    final weather = _weather!;
 
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
+          children: [
             Row(
-              children: <Widget>[
-                Icon(Icons.local_florist, color: scheme.primary),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Freshness Overview',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: scheme.onSurface,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: status.backgroundColor,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      status.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: status.textColor,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              children: [
+                Icon(Icons.wb_cloudy_rounded, size: 32, color: scheme.primary),
+                const SizedBox(width: 12),
+                Text(
+                  'Global Greenhouse Weather',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onSurface,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            // Temperature Section
             Row(
-              children: <Widget>[
-                Expanded(
-                  child: _buildMetricTile(
-                    scheme: scheme,
-                    label: 'Freshness Score',
-                    value: '${score.toStringAsFixed(1)}%',
-                    icon: Icons.insights,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${weather.temperature.toStringAsFixed(1)}°',
+                  style: TextStyle(
+                    fontSize: 64,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onSurface,
+                    height: 1.0,
+                    letterSpacing: -2,
                   ),
                 ),
                 const SizedBox(width: 16),
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.arrow_upward_rounded,
+                            size: 18,
+                            color: Colors.red.shade400,
+                          ),
+                          Text(
+                            '${weather.highTemp.toStringAsFixed(0)}°',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.red.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.arrow_downward_rounded,
+                            size: 18,
+                            color: Colors.blue.shade400,
+                          ),
+                          Text(
+                            '${weather.lowTemp.toStringAsFixed(0)}°',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  weather.getConditionIcon(),
+                  size: 64,
+                  color: Colors.amber.shade400,
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Weather Metrics Grid
+            Row(
+              children: [
                 Expanded(
-                  child: _buildMetricTile(
-                    scheme: scheme,
-                    label: 'Vase Life',
-                    value: '${vaseLifeHours.toStringAsFixed(1)} h',
-                    icon: Icons.access_time,
+                  child: _buildWeatherMetric(
+                    icon: Icons.water_drop_rounded,
+                    label: 'Humidity',
+                    value: '${weather.humidity.toStringAsFixed(0)}%',
+                    color: Colors.blue,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildWeatherMetric(
+                    icon: Icons.grain_rounded,
+                    label: 'Rain',
+                    value: '${weather.precipitation.toStringAsFixed(1)}mm',
+                    color: Colors.blue.shade700,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap "Freshness Monitoring" below for detailed insights.',
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildWeatherMetric(
+                    icon: Icons.compress_rounded,
+                    label: 'Pressure',
+                    value: '${weather.pressure.toStringAsFixed(1)} hPa',
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildWeatherMetric(
+                    icon: Icons.air_rounded,
+                    label: 'Wind',
+                    value: '${weather.windSpeed.toStringAsFixed(1)} km/h',
+                    color: Colors.cyan,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            // Sunrise/Sunset Row
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.wb_twilight_rounded,
+                        size: 24,
+                        color: Colors.orange.shade600,
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sunrise',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            weather.sunrise,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: scheme.outline.withValues(alpha: 0.2),
+                  ),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.wb_twilight_rounded,
+                        size: 24,
+                        color: Colors.deepPurple.shade300,
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sunset',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Text(
+                            weather.sunset,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -415,54 +659,39 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildMetricTile({
-    required ColorScheme scheme,
+  Widget _buildWeatherMetric({
+    required IconData icon,
     required String label,
     required String value,
-    required IconData icon,
+    required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
-      child: Row(
-        children: <Widget>[
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: scheme.primaryContainer,
-              borderRadius: BorderRadius.circular(8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: color),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w500,
             ),
-            child: Icon(icon, size: 20, color: scheme.onPrimaryContainer),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Text(
-                  label,
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
             ),
           ),
         ],
@@ -470,51 +699,155 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  _StatusInfo _getStatusInfo(double score, ColorScheme scheme) {
-    if (score >= 70) {
-      return _StatusInfo(
-        label: 'Fresh',
-        backgroundColor: Colors.green.withOpacity(0.1),
-        textColor: Colors.green.shade800,
-      );
-    } else if (score >= 40) {
-      return _StatusInfo(
-        label: 'Moderate',
-        backgroundColor: Colors.orange.withOpacity(0.1),
-        textColor: Colors.orange.shade800,
-      );
-    } else {
-      return _StatusInfo(
-        label: 'Poor',
-        backgroundColor: Colors.red.withOpacity(0.1),
-        textColor: Colors.red.shade800,
+  Widget _buildSectionTitle(String title, ColorScheme scheme) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: scheme.onSurface,
+        letterSpacing: -0.4,
+      ),
+    );
+  }
+
+  Widget _buildComponentCards(BuildContext context, ColorScheme scheme) {
+    // Filter components based on search query
+    final filteredComponents = _searchQuery.isEmpty
+        ? _components
+        : _components
+              .where(
+                (component) =>
+                    component.name.toLowerCase().contains(_searchQuery),
+              )
+              .toList();
+
+    if (filteredComponents.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 64,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No components found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try searching with different keywords',
+              style: TextStyle(
+                fontSize: 14,
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+          ],
+        ),
       );
     }
+
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.1,
+      ),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: filteredComponents.length,
+      itemBuilder: (BuildContext context, int index) {
+        final component = filteredComponents[index];
+        return _buildComponentCard(context, scheme, component);
+      },
+    );
+  }
+
+  Widget _buildComponentCard(
+    BuildContext context,
+    ColorScheme scheme,
+    _ComponentCard component,
+  ) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => Navigator.of(context).pushNamed(component.route),
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outline.withValues(alpha: 0.1),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 12,
+                spreadRadius: 0,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: component.accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  component.icon,
+                  size: 28,
+                  color: component.accentColor,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                component.name,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                  height: 1.3,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-class _StatusInfo {
-  const _StatusInfo({
-    required this.label,
-    required this.backgroundColor,
-    required this.textColor,
-  });
+enum ComponentStatus { normal, warning, attention }
 
-  final String label;
-  final Color backgroundColor;
-  final Color textColor;
-}
-
-class _DashboardEntry {
-  const _DashboardEntry({
-    required this.title,
-    required this.subtitle,
+class _ComponentCard {
+  const _ComponentCard({
+    required this.name,
     required this.icon,
     required this.route,
+    required this.status,
+    required this.accentColor,
   });
 
-  final String title;
-  final String subtitle;
+  final String name;
   final IconData icon;
   final String route;
+  final ComponentStatus status;
+  final Color accentColor;
 }
