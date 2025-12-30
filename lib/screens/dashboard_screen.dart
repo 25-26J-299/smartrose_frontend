@@ -173,30 +173,43 @@ class _DashboardScreenState extends State<DashboardScreen>
           onRefresh: () => _loadFreshnessSummary(forceRefresh: true),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.symmetric(
+              horizontal: constraints.maxWidth < 400 ? 12 : 16,
+              vertical: 16,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 _buildFreshnessSummaryCard(scheme),
                 const SizedBox(height: 16),
-                GridView.count(
-                  crossAxisCount: crossAxisCount,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: isWide ? 1.4 : 1.1,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: _entries
-                      .map(
-                        (_DashboardEntry entry) => DashboardCard(
-                          title: entry.title,
-                          subtitle: entry.subtitle,
-                          icon: entry.icon,
-                          onTap: () =>
-                              Navigator.of(context).pushNamed(entry.route),
-                        ),
-                      )
-                      .toList(),
+                LayoutBuilder(
+                  builder: (BuildContext context, BoxConstraints constraints) {
+                    // Adjust aspect ratio for smaller screens
+                    final double aspectRatio = constraints.maxWidth < 400
+                        ? 0.9
+                        : isWide
+                            ? 1.4
+                            : 1.1;
+                    return GridView.count(
+                      crossAxisCount: crossAxisCount,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                      childAspectRatio: aspectRatio,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: _entries
+                          .map(
+                            (_DashboardEntry entry) => DashboardCard(
+                              title: entry.title,
+                              subtitle: entry.subtitle,
+                              icon: entry.icon,
+                              onTap: () =>
+                                  Navigator.of(context).pushNamed(entry.route),
+                            ),
+                          )
+                          .toList(),
+                    );
+                  },
                 ),
               ],
             ),
@@ -254,6 +267,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                     Text(
                       _freshnessError!,
                       style: TextStyle(color: scheme.onErrorContainer),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
                     TextButton.icon(
@@ -286,12 +301,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 children: <Widget>[
                   Icon(Icons.local_florist, color: scheme.primary),
                   const SizedBox(width: 8),
-                  Text(
-                    'Freshness Overview',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: scheme.onSurface,
+                  Expanded(
+                    child: Text(
+                      'Freshness Overview',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -300,6 +319,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               Text(
                 'No freshness data available yet for $_currentDeviceId.',
                 style: TextStyle(color: scheme.onSurfaceVariant),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -322,30 +343,38 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: <Widget>[
                 Icon(Icons.local_florist, color: scheme.primary),
                 const SizedBox(width: 8),
-                Text(
-                  'Freshness Overview',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
+                Expanded(
+                  child: Text(
+                    'Freshness Overview',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: status.backgroundColor,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    status.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: status.textColor,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: status.backgroundColor,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      status.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: status.textColor,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -377,6 +406,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             Text(
               'Tap "Freshness Monitoring" below for detailed insights.',
               style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -407,23 +438,32 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Icon(icon, size: 20, color: scheme.onPrimaryContainer),
           ),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

@@ -43,6 +43,7 @@ class SmartRoseApp extends StatelessWidget {
           return MaterialApp(
             title: 'SmartRose',
             theme: AppTheme.light,
+            debugShowCheckedModeBanner: false,
             initialRoute: AppRoutes.login,
             onGenerateRoute: (RouteSettings settings) {
               return AppRoutes.onGenerateRoute(

@@ -9,13 +9,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:smartrose_frontend/main.dart';
 import 'package:smartrose_frontend/core/config/app_config.dart';
+import 'package:smartrose_frontend/core/auth/auth_state.dart';
 
 void main() {
   testWidgets('Login screen renders correctly', (WidgetTester tester) async {
     final AppConfigState appConfigState = AppConfigState();
     await AppConfig.init(appConfigState: appConfigState);
+    final authState = AuthState();
 
-    await tester.pumpWidget(SmartRoseApp(appConfigState: appConfigState));
+    await tester.pumpWidget(SmartRoseApp(
+      appConfigState: appConfigState,
+      authState: authState,
+    ));
     await tester.pumpAndSettle();
 
     // Verify login screen elements
