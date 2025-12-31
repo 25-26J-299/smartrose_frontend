@@ -58,6 +58,34 @@ class SensorApi {
     return <SensorReading>[];
   }
 
+  /// Fetch latest sensor reading with its ML prediction
+  Future<Map<String, dynamic>?> fetchLatestWithPrediction({
+    String? basestationId,
+    String? greenhouseId,
+  }) async {
+    // Start of EOSM
+    final Map<String, String> query = <String, String>{};
+    if (basestationId != null) query['basestationId'] = basestationId;
+    if (greenhouseId != null) query['greenhouseId'] = greenhouseId;
+
+    final Uri uri = _apiService.uri('/eosm-data/latest-with-prediction', query: query);
+
+    try {
+      final http.Response response = await _apiService.getUri(uri);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic>? body = _apiService.decodeJson(response);
+        final dynamic data = body?['data'];
+        if (data is Map<String, dynamic>) {
+          return data;
+        }
+      }
+    } catch (err) {
+      debugPrint('SensorApi.fetchLatestWithPrediction error: $err');
+    }
+    return null;
+    // End of EOSM
+  }
+
   List<dynamic> _extractItems(dynamic data) {
     if (data is List<dynamic>) return data;
     if (data is Map<String, dynamic>) {

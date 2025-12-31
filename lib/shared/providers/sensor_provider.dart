@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/sensor_reading.dart';
+import '../models/eosm_stress_prediction.dart';
 import '../services/sensor_api.dart';
 import '../utils/collection_extensions.dart';
 
@@ -16,6 +17,7 @@ class SensorProvider extends ChangeNotifier {
 
   List<SensorReading> _readings = <SensorReading>[]; // all readings (all greenhouses)
   SensorReading? _latest;
+  EosmStressPrediction? _latestPrediction;
   bool _isLoading = false;
   String? _errorMessage;
   Timer? _refreshTimer;
@@ -23,6 +25,7 @@ class SensorProvider extends ChangeNotifier {
 
   List<SensorReading> get readings => _readings;
   SensorReading? get latest => _latest;
+  EosmStressPrediction? get latestPrediction => _latestPrediction;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get selectedGreenhouseId => _selectedGreenhouseId;
@@ -74,7 +77,8 @@ class SensorProvider extends ChangeNotifier {
 
   void setSelectedGreenhouse(String? id) {
     _selectedGreenhouseId = (id == null || id.isEmpty) ? 'ALL' : id;
-    notifyListeners();
+    // Refresh data for the newly selected greenhouse
+    unawaited(refresh(force: true));
   }
 
   double? get averageTemperature {
@@ -111,27 +115,69 @@ class SensorProvider extends ChangeNotifier {
     if (!force) notifyListeners();
 
     try {
+      // Fetch latest sensor data and prediction together
+      // This ensures we always get the absolute latest reading from the database
+      final String? ghId = _selectedGreenhouseId == 'ALL' ? null : _selectedGreenhouseId;
+      final Map<String, dynamic>? latestWithPrediction = await _api.fetchLatestWithPrediction(
+        basestationId: null, // Let backend find the latest regardless of basestation
+        greenhouseId: ghId,
+      );
+
+      if (latestWithPrediction != null) {
+        // Update latest reading from the response
+        final dynamic readingData = latestWithPrediction['reading'];
+        if (readingData != null) {
+          _latest = SensorReading.fromJson(readingData as Map<String, dynamic>);
+        }
+
+        // Update prediction from the response
+        final dynamic predictionData = latestWithPrediction['prediction'];
+        if (predictionData != null) {
+          _latestPrediction = EosmStressPrediction.fromJson(
+            predictionData as Map<String, dynamic>,
+          );
+          debugPrint('SensorProvider: Prediction updated - ${_latestPrediction?.stressLabel}');
+        } else {
+          _latestPrediction = null;
+          debugPrint('SensorProvider: No prediction in response');
+        }
+      }
+
+      // Always fetch history for trends (regardless of latest-with-prediction result)
       final List<SensorReading> history =
           await _api.fetchHistory(sensorId: null, limit: historyLimit);
-
       if (history.isNotEmpty) {
         _readings = history;
-        _latest = history.first;
+        // Update _latest if we got it from latest-with-prediction, otherwise use first from history
+        if (_latest == null) {
+          _latest = history.first;
+        } else {
+          // Ensure latest is at the front of the list if it's not already there
+          _readings.remove(_latest);
+          _readings.insert(0, _latest!);
+        }
       } else {
-        _latest = null;
-        _readings = <SensorReading>[];
-        _errorMessage = 'No sensor readings available yet.';
+        if (_latest != null) {
+          _readings = <SensorReading>[_latest!];
+        } else {
+          _latest = null;
+          _readings = <SensorReading>[];
+          _errorMessage = 'No sensor readings available yet.';
+        }
       }
 
       // Initialize default selection
       _selectedGreenhouseId ??= _latest?.greenhouseId ?? availableGreenhouseIds.firstOrNull ?? 'ALL';
     } catch (err) {
+      debugPrint('SensorProvider.refresh error: $err');
       _errorMessage = 'Unable to load sensor data. Please try again.';
+      _latestPrediction = null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
+
 
   Future<List<SensorReading>> fetchHistoryForDateRange({
     DateTime? startDate,
