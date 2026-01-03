@@ -9,6 +9,7 @@ import '../services/inm_api_service.dart';
 import '../widgets/inm_latest_card.dart';
 import '../widgets/inm_history_table.dart';
 import '../widgets/inm_status_card.dart';
+import '../widgets/growth_stage_selector.dart';
 
 class InmDashboardScreen extends StatefulWidget {
   const InmDashboardScreen({super.key});
@@ -331,17 +332,21 @@ class _InmDashboardScreenState extends State<InmDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Section 1: INM Status Card (EC values & recommendation)
+          // Section 1: Growth Stage Selector
+          const GrowthStageSelector(),
+          const SizedBox(height: 24),
+          
+          // Section 2: INM Status Card (EC values & recommendation)
           const InmStatusCard(),
           const SizedBox(height: 24),
           
-          // Section 2: Latest Sensor Readings Card
+          // Section 3: Latest Sensor Readings Card
           if (_latestReading != null) ...[
             InmLatestCard(reading: _latestReading!),
             const SizedBox(height: 24),
           ],
 
-          // Section 3: Date Range Filter
+          // Section 4: Date Range Filter
           Card(
             elevation: 2,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -512,7 +517,7 @@ class _InmDashboardScreenState extends State<InmDashboardScreen> {
           
           const SizedBox(height: 16),
 
-          // Section 4: Sensor History Table
+          // Section 5: Sensor History Table
           InmHistoryTable(readings: _historyReadings),
           
           const SizedBox(height: 16),

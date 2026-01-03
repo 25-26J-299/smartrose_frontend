@@ -1,19 +1,19 @@
-// File: lib/features/inm/widgets/inm_status_card.dart
-// Purpose: Widget displaying INM status with EC prediction and recommendations (Random Forest ML)
+// File: lib/features/inm/widgets/inm_status_summary_card.dart
+// Purpose: Simplified status card showing only EC values and status summary (for Dashboard tab)
 
 import 'package:flutter/material.dart';
 
 import '../models/inm_status.dart';
 import '../services/inm_api_service.dart';
 
-class InmStatusCard extends StatefulWidget {
-  const InmStatusCard({super.key});
+class InmStatusSummaryCard extends StatefulWidget {
+  const InmStatusSummaryCard({super.key});
 
   @override
-  State<InmStatusCard> createState() => _InmStatusCardState();
+  State<InmStatusSummaryCard> createState() => _InmStatusSummaryCardState();
 }
 
-class _InmStatusCardState extends State<InmStatusCard> {
+class _InmStatusSummaryCardState extends State<InmStatusSummaryCard> {
   final InmApiService _apiService = InmApiService();
   late Future<InmStatus> _statusFuture;
 
@@ -230,92 +230,62 @@ class _InmStatusCardState extends State<InmStatusCard> {
             ),
           ),
           
-          // Recommendations Section
+          // Single-line Status Summary
           Padding(
             padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Growth Stage Used (if available)
-                if (status.growthStage != null && status.growthStage!.isNotEmpty) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.green.withOpacity(0.2)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.eco, color: Colors.green, size: 16),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: RichText(
-                            text: TextSpan(
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.8),
-                              ),
-                              children: [
-                                const TextSpan(text: 'Growth Stage Used: '),
-                                TextSpan(
-                                  text: _capitalizeStage(status.growthStage!),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: statusColor.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: statusColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _getStatusSummary(status),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.8),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withOpacity(0.3),
+                  ),
                 ],
-                
-                // EC Action
-                _RecommendationTile(
-                  icon: Icons.electric_bolt,
-                  title: 'EC Action',
-                  content: status.ecAction,
-                  color: statusColor,
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // pH Action
-                _RecommendationTile(
-                  icon: Icons.water_drop,
-                  title: 'pH Action',
-                  content: status.phAction,
-                  color: Colors.teal,
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // NPK Recommendation
-                _RecommendationTile(
-                  icon: Icons.eco,
-                  title: 'NPK Recommendation',
-                  content: status.npkRecommendation,
-                  color: Colors.green,
-                  isExpanded: true,
-                ),
-              ],
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _getStatusSummary(InmStatus status) {
+    switch (status.statusType) {
+      case EcStatusType.optimal:
+        return 'All systems optimal — no action required';
+      case EcStatusType.low:
+        return 'EC slightly low — monitor closely';
+      case EcStatusType.high:
+        return 'EC slightly high — monitor closely';
+      case EcStatusType.criticalLow:
+        return 'EC critically low — action required';
+      case EcStatusType.criticalHigh:
+        return 'EC critically high — action required';
+      case EcStatusType.unknown:
+        return 'Status unknown — check sensors';
+    }
   }
 
   Color _getStatusColor(EcStatusType status) {
@@ -347,12 +317,6 @@ class _InmStatusCardState extends State<InmStatusCard> {
       case EcStatusType.unknown:
         return Icons.help_outline;
     }
-  }
-
-  /// Capitalize the first letter of the stage for display
-  String _capitalizeStage(String stage) {
-    if (stage.isEmpty) return stage;
-    return stage[0].toUpperCase() + stage.substring(1).toLowerCase();
   }
 }
 
@@ -448,66 +412,4 @@ class _EcValueTile extends StatelessWidget {
   }
 }
 
-class _RecommendationTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String content;
-  final Color color;
-  final bool isExpanded;
 
-  const _RecommendationTile({
-    required this.icon,
-    required this.title,
-    required this.content,
-    required this.color,
-    this.isExpanded = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 16),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            content,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurface.withOpacity(0.8),
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
