@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../features/disease/screens/disease_home_screen.dart';
 import '../features/freshness/screens/freshness_home_screen.dart';
-import '../features/inm/screens/inm_dashboard_screen.dart';
+import '../features/inm/screens/inm_overview_screen.dart';
+import '../features/inm/screens/inm_actions_history_screen.dart';
 import '../features/nutrition/screens/nutrition_home_screen.dart';
 import '../features/stress/screens/eosm_home_screen.dart';
 import '../screens/bottom_navigation_shell.dart';
@@ -24,6 +25,7 @@ class AppRoutes {
   // Main routes
   static const String home = '/home';
   static const String inmSensors = '/inm-sensors';
+  static const String inmActionsHistory = '/inm-actions-history';
 
   // Legacy/other routes
   static const String registration = '/registration';
@@ -37,6 +39,7 @@ class AppRoutes {
     root,
     home,
     inmSensors,
+    inmActionsHistory,
     registration,
     settings,
     freshness,
@@ -57,7 +60,8 @@ class AppRoutes {
     // Main routes (both / and /home point to home)
     root: (BuildContext context) => const BottomNavigationShell(),
     home: (BuildContext context) => const BottomNavigationShell(),
-    inmSensors: (BuildContext context) => const InmDashboardScreen(),
+    inmSensors: (BuildContext context) => const InmOverviewScreen(),
+    inmActionsHistory: (BuildContext context) => const InmActionsHistoryScreen(),
 
     // Legacy/other routes
     registration: (BuildContext context) => const RegistrationScreen(),

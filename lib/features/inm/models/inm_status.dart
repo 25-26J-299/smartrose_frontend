@@ -8,6 +8,8 @@ class InmStatus {
   final String ecAction;
   final String phAction;
   final String npkRecommendation;
+  final String? growthStage;
+  final DateTime? timestamp;
 
   InmStatus({
     required this.currentEc,
@@ -16,6 +18,8 @@ class InmStatus {
     required this.ecAction,
     required this.phAction,
     required this.npkRecommendation,
+    this.growthStage,
+    this.timestamp,
   });
 
   factory InmStatus.fromJson(Map<String, dynamic> json) {
@@ -26,6 +30,8 @@ class InmStatus {
       ecAction: json['ec_action']?.toString() ?? 'No EC action available',
       phAction: json['ph_action']?.toString() ?? 'No pH action available',
       npkRecommendation: json['npk_recommendation']?.toString() ?? 'No NPK recommendation available',
+      growthStage: json['growth_stage']?.toString(),
+      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
     );
   }
 

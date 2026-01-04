@@ -1,13 +1,14 @@
-// File: lib/features/inm/widgets/inm_latest_card.dart
+// File: lib/features/inm/widgets/live_sensor_snapshot.dart
 // Purpose: Compact 2-column sensor cards for modern mobile dashboard (2026 design)
 
 import 'package:flutter/material.dart';
+
 import '../models/inm_sensor_reading.dart';
 
-class InmLatestCard extends StatelessWidget {
+class LiveSensorSnapshot extends StatelessWidget {
   final InmSensorReading reading;
 
-  const InmLatestCard({super.key, required this.reading});
+  const LiveSensorSnapshot({super.key, required this.reading});
 
   @override
   Widget build(BuildContext context) {
@@ -16,58 +17,57 @@ class InmLatestCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(
-            children: [
-              Text(
-                'Live Readings',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+        // Header with "LIVE" indicator
+        Row(
+          children: [
+            Text(
+              'Live Sensors',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade500,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red.shade500,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 4,
+                    height: 4,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'LIVE',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 9,
-                      ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'LIVE',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 9,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const Spacer(),
-              Text(
-                reading.timeAgo,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
-                  fontSize: 11,
-                ),
+            ),
+            const Spacer(),
+            Text(
+              reading.timeAgo,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.5),
+                fontSize: 11,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+        
+        const SizedBox(height: 12),
         
         // Uniform 2-column grid for all sensors
         GridView.count(

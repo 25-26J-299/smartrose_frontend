@@ -236,6 +236,52 @@ class _InmStatusCardState extends State<InmStatusCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Growth Stage Used (if available)
+                if (status.growthStage != null && status.growthStage!.isNotEmpty) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.eco, color: Colors.green, size: 16),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: RichText(
+                            text: TextSpan(
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface.withOpacity(0.8),
+                              ),
+                              children: [
+                                const TextSpan(text: 'Growth Stage Used: '),
+                                TextSpan(
+                                  text: _capitalizeStage(status.growthStage!),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                
                 // EC Action
                 _RecommendationTile(
                   icon: Icons.electric_bolt,
@@ -301,6 +347,12 @@ class _InmStatusCardState extends State<InmStatusCard> {
       case EcStatusType.unknown:
         return Icons.help_outline;
     }
+  }
+
+  /// Capitalize the first letter of the stage for display
+  String _capitalizeStage(String stage) {
+    if (stage.isEmpty) return stage;
+    return stage[0].toUpperCase() + stage.substring(1).toLowerCase();
   }
 }
 
