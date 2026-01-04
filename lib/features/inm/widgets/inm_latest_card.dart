@@ -1,5 +1,5 @@
 // File: lib/features/inm/widgets/inm_latest_card.dart
-// Purpose: Card widget displaying the latest INM sensor reading with ALL values
+// Purpose: Compact 2-column sensor cards for modern mobile dashboard (2026 design)
 
 import 'package:flutter/material.dart';
 import '../models/inm_sensor_reading.dart';
@@ -13,315 +13,147 @@ class InmLatestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              theme.colorScheme.primary.withOpacity(0.1),
-              theme.colorScheme.secondary.withOpacity(0.05),
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.sensors,
-                      color: theme.colorScheme.primary,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Latest Sensor Readings',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 14,
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                'Last updated: ${reading.timeAgo}',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurface.withOpacity(0.6),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // Device ID and Timestamp row
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.device_hub,
-                          size: 14,
-                          color: theme.colorScheme.secondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          reading.deviceId,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.secondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.tertiary.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: theme.colorScheme.tertiary,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          reading.formattedTime,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.tertiary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Section: Environmental Conditions
-              _SectionHeader(title: 'Environmental Conditions', icon: Icons.cloud),
-              const SizedBox(height: 12),
-              
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 500;
-                  final tileWidth = isWide 
-                      ? (constraints.maxWidth - 24) / 3 
-                      : (constraints.maxWidth - 12) / 2;
-                  
-                  return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _SensorValueTile(
-                        icon: Icons.thermostat,
-                        label: 'Air Temperature',
-                        value: '${reading.airTemp.toStringAsFixed(1)}°C',
-                        color: Colors.orange,
-                        width: tileWidth,
-                      ),
-                      _SensorValueTile(
-                        icon: Icons.water_drop,
-                        label: 'Air Humidity',
-                        value: '${reading.airHum.toStringAsFixed(1)}%',
-                        color: Colors.blue,
-                        width: tileWidth,
-                      ),
-                      _SensorValueTile(
-                        icon: Icons.device_thermostat,
-                        label: 'Soil Temperature',
-                        value: '${reading.soilTemp.toStringAsFixed(1)}°C',
-                        color: Colors.deepOrange,
-                        width: tileWidth,
-                      ),
-                      _SensorValueTile(
-                        icon: Icons.grass,
-                        label: 'Soil Moisture',
-                        value: '${reading.soilMoisture.toStringAsFixed(1)}%',
-                        color: Colors.brown,
-                        width: tileWidth,
-                      ),
-                    ],
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Section: Soil Chemistry
-              _SectionHeader(title: 'Soil Chemistry', icon: Icons.science),
-              const SizedBox(height: 12),
-              
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 500;
-                  final tileWidth = isWide 
-                      ? (constraints.maxWidth - 24) / 3 
-                      : (constraints.maxWidth - 12) / 2;
-                  
-                  return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _SensorValueTile(
-                        icon: Icons.electric_bolt,
-                        label: 'EC Value',
-                        value: reading.ec.toStringAsFixed(2),
-                        color: Colors.purple,
-                        width: tileWidth,
-                      ),
-                      _SensorValueTile(
-                        icon: Icons.opacity,
-                        label: 'pH Level',
-                        value: reading.ph.toStringAsFixed(2),
-                        color: Colors.teal,
-                        width: tileWidth,
-                      ),
-                    ],
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Section: NPK Nutrients
-              _SectionHeader(title: 'NPK Nutrients', icon: Icons.eco),
-              const SizedBox(height: 12),
-              
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isWide = constraints.maxWidth > 500;
-                  final tileWidth = isWide 
-                      ? (constraints.maxWidth - 24) / 3 
-                      : (constraints.maxWidth - 12) / 2;
-                  
-                  return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _SensorValueTile(
-                        icon: Icons.fiber_manual_record,
-                        label: 'Nitrogen (N)',
-                        value: reading.nitrogen.toStringAsFixed(1),
-                        color: Colors.green,
-                        width: tileWidth,
-                      ),
-                      _SensorValueTile(
-                        icon: Icons.fiber_manual_record,
-                        label: 'Phosphorus (P)',
-                        value: reading.phosphorus.toStringAsFixed(1),
-                        color: Colors.amber,
-                        width: tileWidth,
-                      ),
-                      _SensorValueTile(
-                        icon: Icons.fiber_manual_record,
-                        label: 'Potassium (K)',
-                        value: reading.potassium.toStringAsFixed(1),
-                        color: Colors.pink,
-                        width: tileWidth,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  final IconData icon;
-
-  const _SectionHeader({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          icon,
-          size: 18,
-          color: theme.colorScheme.primary.withOpacity(0.7),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.primary.withOpacity(0.8),
+        // Header
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Text(
+                'Live Readings',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade500,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'LIVE',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              Text(
+                reading.timeAgo,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ),
+        ),
+        
+        // Uniform 2-column grid for all sensors
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          childAspectRatio: 1.5,
+          children: [
+            _CompactSensorCard(
+              icon: Icons.fiber_manual_record,
+              label: 'Nitrogen',
+              value: reading.nitrogen.toStringAsFixed(0),
+              unit: 'mg/kg',
+              color: Colors.green,
+            ),
+            _CompactSensorCard(
+              icon: Icons.fiber_manual_record,
+              label: 'Phosphorus',
+              value: reading.phosphorus.toStringAsFixed(0),
+              unit: 'mg/kg',
+              color: Colors.amber,
+            ),
+            _CompactSensorCard(
+              icon: Icons.fiber_manual_record,
+              label: 'Potassium',
+              value: reading.potassium.toStringAsFixed(0),
+              unit: 'mg/kg',
+              color: Colors.pink,
+            ),
+            _CompactSensorCard(
+              icon: Icons.electric_bolt,
+              label: 'EC',
+              value: reading.ec.toStringAsFixed(2),
+              unit: 'mS/cm',
+              color: Colors.purple,
+            ),
+            _CompactSensorCard(
+              icon: Icons.opacity,
+              label: 'pH',
+              value: reading.ph.toStringAsFixed(1),
+              unit: '',
+              color: Colors.teal,
+            ),
+            _CompactSensorCard(
+              icon: Icons.water_drop,
+              label: 'Soil Moisture',
+              value: reading.soilMoisture.toStringAsFixed(0),
+              unit: '%',
+              color: Colors.brown,
+            ),
+            _CompactSensorCard(
+              icon: Icons.thermostat,
+              label: 'Air Temp',
+              value: reading.airTemp.toStringAsFixed(1),
+              unit: '°C',
+              color: Colors.orange,
+            ),
+            _CompactSensorCard(
+              icon: Icons.water_drop_outlined,
+              label: 'Air Humidity',
+              value: reading.airHum.toStringAsFixed(0),
+              unit: '%',
+              color: Colors.blue,
+            ),
+          ],
         ),
       ],
     );
   }
 }
 
-class _SensorValueTile extends StatelessWidget {
+class _CompactSensorCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final String unit;
   final Color color;
-  final double width;
 
-  const _SensorValueTile({
+  const _CompactSensorCard({
     required this.icon,
     required this.label,
     required this.value,
+    required this.unit,
     required this.color,
-    required this.width,
   });
 
   @override
@@ -329,45 +161,67 @@ class _SensorValueTile extends StatelessWidget {
     final theme = Theme.of(context);
     
     return Container(
-      width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          // Icon and label row
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
                   label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: color.withOpacity(0.9),
+              ),
+            ],
+          ),
+          
+          // Value and unit
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  fontSize: 28,
+                ),
+              ),
+              if (unit.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Text(
+                    unit,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: color.withOpacity(0.7),
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ],
-            ),
+            ],
           ),
         ],
       ),
