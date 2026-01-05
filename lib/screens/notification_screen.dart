@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../core/auth/auth_state.dart';
 import '../features/inm/services/inm_api_service.dart';
 import '../features/inm/models/inm_status.dart';
 import '../features/inm/models/inm_sensor_reading.dart';
@@ -10,6 +12,7 @@ import '../shared/models/reading_model.dart';
 import '../shared/services/sensor_service.dart';
 import '../shared/models/sensor_data.dart';
 import '../core/app_routes.dart';
+import '../shared/utils/role_filter.dart';
 
 enum NotificationType { critical, warning, info }
 
@@ -31,12 +34,29 @@ class _NotificationScreenState extends State<NotificationScreen> {
   // Data state
   bool _isLoading = false;
   String? _errorMessage;
+  List<String> _userRoles = [];
   List<_NotificationItem> _allNotifications = [];
+
+  List<String> _previousRoles = [];
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final AuthState authState = context.watch<AuthState>();
+    final List<String> currentRoles = authState.roles;
+
+    // Reload notifications if roles changed
+    if (_previousRoles.toString() != currentRoles.toString()) {
+      _previousRoles = List<String>.from(currentRoles);
+      _userRoles = List<String>.from(currentRoles);
+      _loadNotifications();
+    }
   }
 
   @override
@@ -91,8 +111,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
         // Ignore sensor errors
       }
 
-      // Generate notifications from Freshness alerts
-      if (freshnessPrediction != null && freshnessReading != null) {
+      // Generate notifications from Freshness alerts (Florist only)
+      if (freshnessPrediction != null &&
+          freshnessReading != null &&
+          (RoleFilter.isFlorist(_userRoles) ||
+              RoleFilter.hasBothRoles(_userRoles))) {
         // Freshness score notifications with different severity levels
         final double score = freshnessPrediction.freshnessScore;
         if (score < 40) {
@@ -312,8 +335,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
         }
       }
 
-      // Generate notifications from INM status
-      if (inmStatus != null) {
+      // Generate notifications from INM status (Farmer only)
+      if (inmStatus != null &&
+          (RoleFilter.isFarmer(_userRoles) ||
+              RoleFilter.hasBothRoles(_userRoles))) {
         // Critical EC status
         if (inmStatus.statusType == EcStatusType.criticalLow ||
             inmStatus.statusType == EcStatusType.criticalHigh) {
@@ -394,121 +419,124 @@ class _NotificationScreenState extends State<NotificationScreen> {
         }
       }
 
-      // Generate notifications from sensor readings
-      for (final SensorReading reading in sensorReadings) {
-        // Temperature critical
-        if (reading.temperature < 18 || reading.temperature > 28) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Critical Temperature',
-              description:
-                  'Temperature is ${reading.temperature.toStringAsFixed(1)}°C, outside optimal range (18-28°C).',
-              timestamp: reading.timestamp,
-              component: 'Environment',
-              icon: Icons.thermostat,
-              route: AppRoutes.stress,
-            ),
-          );
-        }
-
-        // Temperature warning
-        if (reading.temperature > 24 && reading.temperature <= 28) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Temperature Warning',
-              description:
-                  'Temperature is ${reading.temperature.toStringAsFixed(1)}°C, approaching limits.',
-              timestamp: reading.timestamp,
-              component: 'Environment',
-              icon: Icons.thermostat,
-              route: AppRoutes.stress,
-            ),
-          );
-        }
-
-        // Humidity critical
-        if (reading.humidity < 50 || reading.humidity > 85) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Critical Humidity',
-              description:
-                  'Humidity is ${reading.humidity.toStringAsFixed(1)}%, outside optimal range (50-85%).',
-              timestamp: reading.timestamp,
-              component: 'Environment',
-              icon: Icons.water_drop,
-              route: AppRoutes.stress,
-            ),
-          );
-        }
-
-        // Humidity warning
-        if (reading.humidity > 75 && reading.humidity <= 85) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Humidity Warning',
-              description:
-                  'Humidity is ${reading.humidity.toStringAsFixed(1)}%, approaching limits.',
-              timestamp: reading.timestamp,
-              component: 'Environment',
-              icon: Icons.water_drop,
-              route: AppRoutes.stress,
-            ),
-          );
-        }
-
-        // Soil critical
-        if (reading.soilVoltage != null) {
-          final double v = reading.soilVoltage!;
-          if (v < 2.0 || v > 3.1) {
+      // Generate notifications from sensor readings (Farmer only - Environment)
+      if (RoleFilter.isFarmer(_userRoles) ||
+          RoleFilter.hasBothRoles(_userRoles)) {
+        for (final SensorReading reading in sensorReadings) {
+          // Temperature critical
+          if (reading.temperature < 18 || reading.temperature > 28) {
             notifications.add(
               _NotificationItem(
                 type: NotificationType.critical,
-                title: 'Critical Soil Condition',
+                title: 'Critical Temperature',
                 description:
-                    'Soil sensor reading is ${v.toStringAsFixed(2)}V, outside optimal range.',
+                    'Temperature is ${reading.temperature.toStringAsFixed(1)}°C, outside optimal range (18-28°C).',
                 timestamp: reading.timestamp,
                 component: 'Environment',
-                icon: Icons.agriculture,
+                icon: Icons.thermostat,
                 route: AppRoutes.stress,
               ),
             );
           }
-        }
 
-        // UV critical
-        if (reading.uvVoltage != null && reading.uvVoltage! > 1.0) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'High UV Exposure',
-              description:
-                  'UV sensor reading is ${reading.uvVoltage!.toStringAsFixed(2)}V, indicating high exposure.',
-              timestamp: reading.timestamp,
-              component: 'Environment',
-              icon: Icons.wb_sunny,
-              route: AppRoutes.stress,
-            ),
-          );
-        }
+          // Temperature warning
+          if (reading.temperature > 24 && reading.temperature <= 28) {
+            notifications.add(
+              _NotificationItem(
+                type: NotificationType.warning,
+                title: 'Temperature Warning',
+                description:
+                    'Temperature is ${reading.temperature.toStringAsFixed(1)}°C, approaching limits.',
+                timestamp: reading.timestamp,
+                component: 'Environment',
+                icon: Icons.thermostat,
+                route: AppRoutes.stress,
+              ),
+            );
+          }
 
-        // Gas critical
-        if (reading.mqVoltage != null && reading.mqVoltage! > 1.0) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'High Gas Level Detected',
-              description:
-                  'Gas sensor reading is ${reading.mqVoltage!.toStringAsFixed(2)}V, indicating elevated levels.',
-              timestamp: reading.timestamp,
-              component: 'Environment',
-              icon: Icons.air,
-              route: AppRoutes.stress,
-            ),
-          );
+          // Humidity critical
+          if (reading.humidity < 50 || reading.humidity > 85) {
+            notifications.add(
+              _NotificationItem(
+                type: NotificationType.critical,
+                title: 'Critical Humidity',
+                description:
+                    'Humidity is ${reading.humidity.toStringAsFixed(1)}%, outside optimal range (50-85%).',
+                timestamp: reading.timestamp,
+                component: 'Environment',
+                icon: Icons.water_drop,
+                route: AppRoutes.stress,
+              ),
+            );
+          }
+
+          // Humidity warning
+          if (reading.humidity > 75 && reading.humidity <= 85) {
+            notifications.add(
+              _NotificationItem(
+                type: NotificationType.warning,
+                title: 'Humidity Warning',
+                description:
+                    'Humidity is ${reading.humidity.toStringAsFixed(1)}%, approaching limits.',
+                timestamp: reading.timestamp,
+                component: 'Environment',
+                icon: Icons.water_drop,
+                route: AppRoutes.stress,
+              ),
+            );
+          }
+
+          // Soil critical
+          if (reading.soilVoltage != null) {
+            final double v = reading.soilVoltage!;
+            if (v < 2.0 || v > 3.1) {
+              notifications.add(
+                _NotificationItem(
+                  type: NotificationType.critical,
+                  title: 'Critical Soil Condition',
+                  description:
+                      'Soil sensor reading is ${v.toStringAsFixed(2)}V, outside optimal range.',
+                  timestamp: reading.timestamp,
+                  component: 'Environment',
+                  icon: Icons.agriculture,
+                  route: AppRoutes.stress,
+                ),
+              );
+            }
+          }
+
+          // UV critical
+          if (reading.uvVoltage != null && reading.uvVoltage! > 1.0) {
+            notifications.add(
+              _NotificationItem(
+                type: NotificationType.critical,
+                title: 'High UV Exposure',
+                description:
+                    'UV sensor reading is ${reading.uvVoltage!.toStringAsFixed(2)}V, indicating high exposure.',
+                timestamp: reading.timestamp,
+                component: 'Environment',
+                icon: Icons.wb_sunny,
+                route: AppRoutes.stress,
+              ),
+            );
+          }
+
+          // Gas critical
+          if (reading.mqVoltage != null && reading.mqVoltage! > 1.0) {
+            notifications.add(
+              _NotificationItem(
+                type: NotificationType.critical,
+                title: 'High Gas Level Detected',
+                description:
+                    'Gas sensor reading is ${reading.mqVoltage!.toStringAsFixed(2)}V, indicating elevated levels.',
+                timestamp: reading.timestamp,
+                component: 'Environment',
+                icon: Icons.air,
+                route: AppRoutes.stress,
+              ),
+            );
+          }
         }
       }
 
@@ -537,6 +565,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final AuthState authState = context.watch<AuthState>();
+    _userRoles = authState.roles;
     final filteredNotifications = _getFilteredNotifications();
 
     return Scaffold(
