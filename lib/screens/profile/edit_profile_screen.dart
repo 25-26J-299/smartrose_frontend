@@ -64,11 +64,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (!rolesOk) {
       final msg = auth.errorMessage ?? 'Could not update roles';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Colors.redAccent,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
       return;
     }
 
@@ -98,10 +100,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         title: const Text(
           'Edit Profile',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -171,10 +170,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                scheme.primary,
-                scheme.secondary,
-              ],
+              colors: [scheme.primary, scheme.secondary],
             ),
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(40),
@@ -272,7 +268,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: AppTheme.freshMeadow, width: 1.5),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
       ),
     );
   }
@@ -349,12 +348,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       height: 60,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          colors: [
-            scheme.primary,
-            scheme.secondary,
-          ],
-        ),
+        gradient: LinearGradient(colors: [scheme.primary, scheme.secondary]),
         boxShadow: [
           BoxShadow(
             color: scheme.primary.withOpacity(0.3),
