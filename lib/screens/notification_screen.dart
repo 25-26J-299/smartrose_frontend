@@ -13,6 +13,7 @@ import '../shared/services/sensor_service.dart';
 import '../shared/models/sensor_data.dart';
 import '../core/app_routes.dart';
 import '../shared/utils/role_filter.dart';
+import '../shared/widgets/gradient_header.dart';
 
 enum NotificationType { critical, warning, info }
 
@@ -348,6 +349,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerHighest,
+      appBar: GradientHeader.buildAppBar(
+        context: context,
+        title: 'Notifications',
+        onBackPressed: () => Navigator.of(context).pop(),
+      ),
       body: RefreshIndicator(
         onRefresh: _loadNotifications,
         child: _isLoading
@@ -356,7 +362,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ? _buildErrorView(scheme)
             : Column(
                 children: <Widget>[
-                  _buildHeader(scheme),
                   _buildFilterChips(scheme),
                   Expanded(
                     child: filteredNotifications.isEmpty
@@ -400,46 +405,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(ColorScheme scheme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'Notifications',
-                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'System alerts & updates',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_allNotifications.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.filter_list),
-              onPressed: () {
-                // Filter menu could be added here
-              },
-              tooltip: 'Filter options',
-              color: scheme.onSurfaceVariant,
-            ),
-        ],
       ),
     );
   }

@@ -11,6 +11,7 @@ import '../../../shared/providers/sensor_provider.dart';
 import '../../../shared/utils/collection_extensions.dart';
 import '../../../shared/widgets/stress_gauge.dart';
 import '../../../shared/widgets/trend_chart.dart';
+import '../../../shared/widgets/gradient_header.dart';
 
 class EosmDashboardScreen extends StatefulWidget {
   const EosmDashboardScreen({super.key});
@@ -70,12 +71,11 @@ class _DashboardView extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FA),
-          appBar: AppBar(
-            title: const Text('Stress Monitoring'),
-            centerTitle: false,
-            elevation: 0,
-            backgroundColor: Colors.transparent,
+          backgroundColor: const Color(0xFFF5F5F5),
+          appBar: GradientHeader.buildAppBar(
+            context: context,
+            title: 'Stress Monitoring',
+            onBackPressed: () => Navigator.of(context).pop(),
           ),
           body: RefreshIndicator(
             onRefresh: () => provider.refresh(force: true),
@@ -783,13 +783,6 @@ class _Header extends StatelessWidget {
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: scheme.primary.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
               ),
               child: const Icon(Icons.local_florist, color: Colors.white, size: 24),
             ),
@@ -1039,58 +1032,49 @@ class _RawCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      child: Card(
-        elevation: 2,
-        shadowColor: color.withOpacity(0.2),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
-          side: BorderSide(
-            color: color.withOpacity(0.15),
-            width: 1,
-          ),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: <Color>[
-                color.withOpacity(0.08),
-                color.withOpacity(0.03),
-              ],
-            ),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(isMobile ? 12 : 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.3,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        value,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                      ),
-                    ],
-                  ),
+        child: Padding(
+          padding: EdgeInsets.all(isMobile ? 12 : 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1193,9 +1177,20 @@ class _ErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
-    return Card(
-      color: scheme.errorContainer,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -1257,15 +1252,19 @@ class _PredictionCard extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final Color stressColor = prediction.stressColor;
     
-    return Card(
-      elevation: 3,
-      shadowColor: stressColor.withOpacity(0.2),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
-        side: BorderSide(
-          color: stressColor.withOpacity(0.2),
-          width: 1,
-        ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -1321,13 +1320,6 @@ class _PredictionCard extends StatelessWidget {
                         color: stressColor.withOpacity(0.4),
                         width: isMobile ? 1.5 : 2,
                       ),
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(
-                          color: stressColor.withOpacity(0.2),
-                          blurRadius: isMobile ? 6 : 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
                     child: Text(
                       prediction.stressLabel,
@@ -1424,21 +1416,18 @@ class _ModernHeader extends StatelessWidget {
         : 'Waiting for first reading';
     
     return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 24),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            const Color(0xFF4CAF50).withOpacity(0.1),
-            const Color(0xFF81C784).withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF4CAF50).withOpacity(0.2),
-          width: 1,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1593,13 +1582,6 @@ class _ModernPredictionCard extends StatelessWidget {
           color: stressColor.withOpacity(0.3),
           width: 2,
         ),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: stressColor.withOpacity(0.2),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1870,27 +1852,18 @@ class _ModernMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(isMobile ? 16 : 20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(isMobile ? 16 : 20),
-        boxShadow: <BoxShadow>[
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
           BoxShadow(
-            color: metric.color.withOpacity(0.2),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
             spreadRadius: 0,
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(
-          color: metric.color.withOpacity(0.15),
-          width: 1.5,
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1912,13 +1885,6 @@ class _ModernMetricCard extends StatelessWidget {
                     ],
                   ),
                   borderRadius: BorderRadius.circular(isMobile ? 14 : 16),
-                  boxShadow: <BoxShadow>[
-                    BoxShadow(
-                      color: metric.color.withOpacity(0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
                 ),
                 child: Icon(
                   metric.icon,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/app_routes.dart';
 import 'dashboard_screen.dart';
 import 'insights_screen.dart';
 import 'menu_screen.dart';
@@ -22,43 +21,11 @@ class _BottomNavigationShellState extends State<BottomNavigationShell> {
     MenuScreen(),
   ];
 
-  final List<String> _titles = const <String>[
-    'Dashboard',
-    'Insights',
-    'Notifications',
-    'Menu',
-  ];
-
-  String _getAppBarTitle() {
-    // Get the current route name from ModalRoute
-    final ModalRoute<dynamic>? route = ModalRoute.of(context);
-    final String? routeName = route?.settings.name;
-
-    if (routeName != null &&
-        routeName != AppRoutes.home &&
-        routeName != AppRoutes.root) {
-      switch (routeName) {
-        case AppRoutes.freshness:
-          return 'Freshness Monitoring';
-        case AppRoutes.nutrition:
-          return 'Nutrition Monitoring';
-        case AppRoutes.stress:
-          return 'Stress Monitoring';
-        case AppRoutes.disease:
-          return 'Disease Detection';
-        case AppRoutes.settings:
-          return 'Settings';
-        default:
-          return _titles[_currentIndex];
-      }
-    }
-    return _titles[_currentIndex];
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Hide AppBar for all screens (Dashboard, Insights, Notifications, and Menu)
     return Scaffold(
-      appBar: AppBar(title: Text(_getAppBarTitle())),
+      appBar: null,
       body: IndexedStack(index: _currentIndex, children: _screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

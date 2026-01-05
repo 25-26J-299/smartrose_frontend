@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_routes.dart';
 import '../core/auth/auth_state.dart';
+import '../shared/widgets/gradient_header.dart';
 import 'profile/edit_profile_screen.dart';
 
 class MenuScreen extends StatefulWidget {
@@ -53,6 +54,12 @@ class _MenuScreenState extends State<MenuScreen> {
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerHighest,
+      appBar: GradientHeader.buildAppBar(
+        context: context,
+        title: 'Menu',
+        showBackButton: true,
+        onBackPressed: () => Navigator.of(context).pop(),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
