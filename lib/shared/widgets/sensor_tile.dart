@@ -14,7 +14,7 @@ class SensorTile extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final DateTime ts = reading.receivedAt ?? reading.timestamp;
     final String subtitle =
-        '${DateFormat('MMM d, HH:mm').format(ts.toLocal())} • ${reading.basestationId}${reading.greenhouseId != null ? ' · ${reading.greenhouseId}' : ''}';
+        '${DateFormat('MMM d, HH:mm').format(ts)} • ${reading.basestationId}${reading.greenhouseId != null ? ' · ${reading.greenhouseId}' : ''}';
 
     return Card(
       elevation: 0,

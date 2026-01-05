@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -70,6 +71,12 @@ class _DashboardView extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: const Color(0xFFF5F7FA),
+          appBar: AppBar(
+            title: const Text('Stress Monitoring'),
+            centerTitle: false,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+          ),
           body: RefreshIndicator(
             onRefresh: () => provider.refresh(force: true),
             child: LayoutBuilder(
@@ -657,7 +664,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                                                     (SensorReading r) => DataRow(
                                                       cells: <DataCell>[
                                                         DataCell(Text(
-                                                            DateFormat('MMM d HH:mm:ss').format(_toSriLanka(r.displayTime)))),
+                                                            DateFormat('MMM d HH:mm:ss').format(r.displayTime))),
                                                         DataCell(Text(r.greenhouseId ?? '—')),
                                                         DataCell(Text(r.basestationId)),
                                                         DataCell(Text(r.temperature.toStringAsFixed(1))),
@@ -715,10 +722,21 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
   }
 }
 
-DateTime _toSriLanka(DateTime dt) {
-  // Convert UTC DateTime to Sri Lanka time (UTC+5:30)
-  final DateTime utc = dt.isUtc ? dt : dt.toUtc();
-  return utc.add(const Duration(hours: 5, minutes: 30));
+String _formatDateTime(DateTime dt, {bool isMobile = false}) {
+  // Backend sends IST time directly, so we just format it
+  // Format date/time manually to ensure colons are always used for time separator
+  final String dayName = DateFormat('EEE', 'en_US').format(dt);
+  final String month = DateFormat('MMM', 'en_US').format(dt);
+  final String day = dt.day.toString();
+  final String year = dt.year.toString();
+  final String hour = dt.hour.toString().padLeft(2, '0');
+  final String minute = dt.minute.toString().padLeft(2, '0');
+  
+  if (isMobile) {
+    return '$dayName, $day $month • $hour:$minute';
+  } else {
+    return '$dayName, $day $month $year • $hour:$minute';
+  }
 }
 
 class _Header extends StatelessWidget {
@@ -745,8 +763,7 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String formatted = lastUpdated != null
-        ? DateFormat(isMobile ? 'MMM d • HH:mm' : 'MMM d, yyyy • HH:mm')
-            .format(_toSriLanka(lastUpdated!))
+        ? _formatDateTime(lastUpdated!, isMobile: isMobile)
         : 'Waiting for first reading';
     final String titleSuffix =
         selectedGreenhouse == 'ALL' ? 'All Greenhouses' : selectedGreenhouse;
@@ -1090,7 +1107,7 @@ class _TrendGrid extends StatelessWidget {
   List<TrendPoint> _map(List<SensorReading> source, double? Function(SensorReading) selector) {
     return source
         .where((SensorReading r) => selector(r) != null)
-        .map((SensorReading r) => TrendPoint(_toSriLanka(r.displayTime), selector(r)!))
+        .map((SensorReading r) => TrendPoint(r.displayTime, selector(r)!))
         .toList();
   }
 
@@ -1403,8 +1420,7 @@ class _ModernHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String formatted = lastUpdated != null
-        ? DateFormat(isMobile ? 'MMM d • HH:mm' : 'EEE, d MMM yyyy • HH:mm')
-            .format(_toSriLanka(lastUpdated!))
+        ? _formatDateTime(lastUpdated!, isMobile: isMobile)
         : 'Waiting for first reading';
     
     return Container(
