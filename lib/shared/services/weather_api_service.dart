@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:convert';
 
+import 'location_service.dart';
+
 class WeatherModel {
   const WeatherModel({
     required this.temperature,
@@ -17,6 +19,7 @@ class WeatherModel {
     required this.sunrise,
     required this.sunset,
     this.icon,
+    this.locationName,
   });
 
   final double temperature;
@@ -30,6 +33,7 @@ class WeatherModel {
   final String sunrise;
   final String sunset;
   final String? icon;
+  final String? locationName;
 
   factory WeatherModel.fromJson(Map<String, dynamic> json) {
     // Format time from Unix timestamp or string
@@ -52,6 +56,20 @@ class WeatherModel {
     final sys = json['sys'] ?? <String, dynamic>{};
     final wind = json['wind'] ?? <String, dynamic>{};
     final rain = json['rain'] ?? <String, dynamic>{};
+    
+    // Extract location name - OpenWeatherMap provides city name in 'name' field
+    // Also try to get country from sys.country
+    String? locationName;
+    final String? cityName = json['name'] as String?;
+    final String? countryCode = sys['country'] as String?;
+    
+    if (cityName != null && cityName.isNotEmpty) {
+      if (countryCode != null && countryCode.isNotEmpty) {
+        locationName = '$cityName, $countryCode';
+      } else {
+        locationName = cityName;
+      }
+    }
 
     return WeatherModel(
       temperature: (main['temp'] ?? 0).toDouble(),
@@ -65,6 +83,7 @@ class WeatherModel {
       sunrise: formatTime(sys['sunrise'] ?? '6:00'),
       sunset: formatTime(sys['sunset'] ?? '18:00'),
       icon: weather['icon'],
+      locationName: locationName,
     );
   }
 
@@ -91,16 +110,46 @@ class WeatherModel {
 }
 
 class WeatherApiService {
-  WeatherApiService({http.Client? client}) : _client = client ?? http.Client();
+  WeatherApiService({
+    http.Client? client,
+    LocationService? locationService,
+  })  : _client = client ?? http.Client(),
+        _locationService = locationService ?? LocationService();
 
   final http.Client _client;
+  final LocationService _locationService;
   static const String _apiKey = '7f8d76675aeb296c6e19984412b1b126';
+
+  // Default location (Colombo, Sri Lanka) - fallback if location unavailable
+  static const double _defaultLatitude = 6.9271;
+  static const double _defaultLongitude = 79.8612;
 
   Future<WeatherModel?> fetchCurrentWeather({double? lat, double? lon}) async {
     try {
-      // Default location (Colombo, Sri Lanka) - you can get from device location using Google API
-      final latitude = lat ?? 6.9271;
-      final longitude = lon ?? 79.8612;
+      double latitude;
+      double longitude;
+      bool usingDefaultLocation = false;
+
+      // Use provided coordinates, or get current location, or use default
+      if (lat != null && lon != null) {
+        latitude = lat;
+        longitude = lon;
+        debugPrint('📍 Using provided coordinates: $latitude, $longitude');
+      } else {
+        // Try to get current location
+        final position = await _locationService.getCurrentLocation();
+        if (position != null) {
+          latitude = position.latitude;
+          longitude = position.longitude;
+          debugPrint('📍 Using current location: $latitude, $longitude');
+        } else {
+          // Fallback to default location
+          latitude = _defaultLatitude;
+          longitude = _defaultLongitude;
+          usingDefaultLocation = true;
+          debugPrint('📍 Using default location (Colombo, Sri Lanka): $latitude, $longitude');
+        }
+      }
 
       // OpenWeatherMap API endpoint
       // Get free API key from: https://openweathermap.org/api
@@ -110,40 +159,133 @@ class WeatherApiService {
 
       debugPrint('🌤️ Fetching weather from: $uri');
 
-      final response = await _client.get(uri);
+      final response = await _client
+          .get(uri)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Weather API request timed out');
+            },
+          );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = json.decode(response.body);
-        debugPrint('✅ Weather data received: $data');
-        return WeatherModel.fromJson(data);
+        debugPrint('✅ Weather data received successfully');
+        WeatherModel weather = WeatherModel.fromJson(data);
+        
+        // If location name is not in the response, try reverse geocoding
+        if (weather.locationName == null || weather.locationName!.isEmpty) {
+          final String? locationName = await _getLocationName(latitude, longitude);
+          if (locationName != null) {
+            // Create a new WeatherModel with the location name
+            weather = WeatherModel(
+              temperature: weather.temperature,
+              highTemp: weather.highTemp,
+              lowTemp: weather.lowTemp,
+              humidity: weather.humidity,
+              precipitation: weather.precipitation,
+              pressure: weather.pressure,
+              windSpeed: weather.windSpeed,
+              condition: weather.condition,
+              sunrise: weather.sunrise,
+              sunset: weather.sunset,
+              icon: weather.icon,
+              locationName: locationName,
+            );
+          } else if (usingDefaultLocation) {
+            // Use default location name if reverse geocoding fails and we're using default coordinates
+            weather = WeatherModel(
+              temperature: weather.temperature,
+              highTemp: weather.highTemp,
+              lowTemp: weather.lowTemp,
+              humidity: weather.humidity,
+              precipitation: weather.precipitation,
+              pressure: weather.pressure,
+              windSpeed: weather.windSpeed,
+              condition: weather.condition,
+              sunrise: weather.sunrise,
+              sunset: weather.sunset,
+              icon: weather.icon,
+              locationName: 'Colombo, Sri Lanka',
+            );
+          }
+        }
+        
+        return weather;
       } else {
+        final errorBody = response.body;
         debugPrint(
-          '❌ Weather API error: ${response.statusCode} - ${response.body}',
+          '❌ Weather API error: ${response.statusCode} - $errorBody',
         );
-        // Return mock data if API fails (fallback)
-        return _getMockWeather();
+        // Check if it's an API key error
+        if (response.statusCode == 401) {
+          debugPrint('⚠️ Invalid API key. Please check your OpenWeatherMap API key.');
+        }
+        // Return null to let the UI show error state
+        return null;
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('❌ WeatherApiService.fetchCurrentWeather error: $e');
-      // Return mock data as fallback
-      return _getMockWeather();
+      debugPrint('Stack trace: $stackTrace');
+      // Return null to let the UI show error state
+      return null;
     }
   }
 
-  WeatherModel _getMockWeather() {
-    final now = DateTime.now();
-    return WeatherModel(
-      temperature: 26.5,
-      highTemp: 30.0,
-      lowTemp: 22.0,
-      humidity: 68.0,
-      precipitation: 0.0,
-      pressure: 1013.2,
-      windSpeed: 12.5,
-      condition: 'Clear',
-      sunrise: DateFormat('h:mm a').format(now.copyWith(hour: 6, minute: 24)),
-      sunset: DateFormat('h:mm a').format(now.copyWith(hour: 18, minute: 48)),
-    );
+  /// Get location name from coordinates using reverse geocoding
+  /// Uses OpenStreetMap Nominatim API (free, no API key required)
+  Future<String?> _getLocationName(double lat, double lon) async {
+    try {
+      final Uri uri = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=10&addressdetails=1',
+      );
+
+      final response = await _client
+          .get(
+            uri,
+            headers: <String, String>{
+              'User-Agent': 'SmartRose Weather App',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              throw Exception('Reverse geocoding request timed out');
+            },
+          );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        final Map<String, dynamic>? address = data['address'] as Map<String, dynamic>?;
+        
+        if (address != null) {
+          // Try to get city name, fallback to other location names
+          final String? city = address['city'] as String? ??
+              address['town'] as String? ??
+              address['village'] as String? ??
+              address['municipality'] as String?;
+          final String? state = address['state'] as String?;
+          final String? country = address['country'] as String?;
+          
+          if (city != null && city.isNotEmpty) {
+            if (country != null && country.isNotEmpty) {
+              return '$city, $country';
+            }
+            return city;
+          } else if (state != null && state.isNotEmpty) {
+            if (country != null && country.isNotEmpty) {
+              return '$state, $country';
+            }
+            return state;
+          } else if (country != null && country.isNotEmpty) {
+            return country;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Reverse geocoding failed: $e');
+    }
+    return null;
   }
 
   void dispose() {

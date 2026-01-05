@@ -348,14 +348,21 @@ class _DashboardScreenState extends State<DashboardScreen>
           .fetchCurrentWeather();
       if (mounted) {
         setState(() {
-          _weather = weather;
+          if (weather != null) {
+            _weather = weather;
+            _weatherError = null;
+          } else {
+            _weather = null;
+            _weatherError = 'Failed to load weather data. Please check your internet connection.';
+          }
           _isWeatherLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _weatherError = 'Failed to load weather data';
+          _weather = null;
+          _weatherError = 'Failed to load weather data: ${e.toString()}';
           _isWeatherLoading = false;
         });
       }
@@ -416,12 +423,13 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
               const SizedBox(height: 16),
               Text(
-                'Weather data unavailable',
+                _weatherError ?? 'Weather data unavailable',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: scheme.onSurfaceVariant,
                 ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
               TextButton(onPressed: _loadWeather, child: const Text('Retry')),
@@ -456,13 +464,17 @@ class _DashboardScreenState extends State<DashboardScreen>
               children: [
                 Icon(Icons.wb_cloudy_rounded, size: 32, color: scheme.primary),
                 const SizedBox(width: 12),
-                Text(
-                  'Global Greenhouse Weather',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
-                    letterSpacing: -0.3,
+                Expanded(
+                  child: Text(
+                    weather.locationName ?? 'Current Location Weather',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onSurface,
+                      letterSpacing: -0.3,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
