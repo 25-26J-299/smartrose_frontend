@@ -94,7 +94,7 @@ class WeatherApiService {
   WeatherApiService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
-  static const String _apiKey = 'AIzaSyBd1Kp8V_zDxCBqFHEvRmkdCAKy6Fru4MM';
+  static const String _apiKey = '7f8d76675aeb296c6e19984412b1b126';
 
   Future<WeatherModel?> fetchCurrentWeather({double? lat, double? lon}) async {
     try {

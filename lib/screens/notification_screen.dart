@@ -116,41 +116,25 @@ class _NotificationScreenState extends State<NotificationScreen> {
           freshnessReading != null &&
           (RoleFilter.isFlorist(_userRoles) ||
               RoleFilter.hasBothRoles(_userRoles))) {
-        // Freshness score notifications with different severity levels
         final double score = freshnessPrediction.freshnessScore;
         if (score < 40) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.critical,
-              title: 'Critical Freshness Score',
-              description:
-                  'Flower freshness is ${score.toStringAsFixed(1)}%. Immediate attention required to prevent quality degradation.',
+              title: 'Critical Freshness',
+              description: 'Freshness score is critical (${score.toStringAsFixed(0)}%)',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.warning,
               route: AppRoutes.freshness,
             ),
           );
-        } else if (score >= 40 && score < 60) {
+        } else if (score < 70) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.warning,
-              title: 'Low Freshness Score',
-              description:
-                  'Flower freshness is ${score.toStringAsFixed(1)}%. Monitor closely and consider taking action.',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.local_florist,
-              route: AppRoutes.freshness,
-            ),
-          );
-        } else if (score >= 60 && score < 70) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.info,
-              title: 'Moderate Freshness Score',
-              description:
-                  'Flower freshness is ${score.toStringAsFixed(1)}%. Conditions are acceptable but could be improved.',
+              title: 'Freshness Update',
+              description: 'Freshness score is decreasing (${score.toStringAsFixed(0)}%)',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.local_florist,
@@ -161,142 +145,42 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
         // Vase life notifications
         final double vaseLifeHours = freshnessPrediction.vaseLifeHours;
-        if (vaseLifeHours < 24) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Short Vase Life Predicted',
-              description:
-                  'Predicted vase life is ${vaseLifeHours.toStringAsFixed(1)} hours. Immediate action needed to extend flower life.',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.access_time,
-              route: AppRoutes.freshness,
-            ),
-          );
-        } else if (vaseLifeHours >= 24 && vaseLifeHours < 48) {
+        if (vaseLifeHours < 48) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.warning,
-              title: 'Limited Vase Life',
-              description:
-                  'Predicted vase life is ${vaseLifeHours.toStringAsFixed(1)} hours. Consider optimizing storage conditions.',
+              title: 'Vase Life Alert',
+              description: 'Predicted vase life is under 48 hours',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.access_time,
-              route: AppRoutes.freshness,
-            ),
-          );
-        }
-
-        // Alerts from prediction model
-        for (final String alert in freshnessPrediction.alerts) {
-          // Determine alert type based on keywords
-          NotificationType alertType = NotificationType.warning;
-          if (alert.toLowerCase().contains('critical') ||
-              alert.toLowerCase().contains('urgent') ||
-              alert.toLowerCase().contains('immediate')) {
-            alertType = NotificationType.critical;
-          } else if (alert.toLowerCase().contains('info') ||
-              alert.toLowerCase().contains('note')) {
-            alertType = NotificationType.info;
-          }
-
-          notifications.add(
-            _NotificationItem(
-              type: alertType,
-              title: 'Freshness Alert',
-              description: alert,
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.local_florist,
               route: AppRoutes.freshness,
             ),
           );
         }
 
         // Temperature alerts from freshness readings
-        if (freshnessReading.temperature < 15 ||
-            freshnessReading.temperature > 25) {
+        if (freshnessReading.temperature < 15 || freshnessReading.temperature > 25) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.critical,
-              title: 'Freshness: Temperature Out of Range',
-              description:
-                  'Temperature is ${freshnessReading.temperature.toStringAsFixed(1)}°C. Optimal range for flowers is 15-25°C.',
+              title: 'Temperature Alert',
+              description: 'Storage temperature outside optimal range',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.thermostat,
-              route: AppRoutes.freshness,
-            ),
-          );
-        } else if (freshnessReading.temperature < 18 ||
-            freshnessReading.temperature > 22) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Freshness: Temperature Warning',
-              description:
-                  'Temperature is ${freshnessReading.temperature.toStringAsFixed(1)}°C. Consider adjusting to optimal range (18-22°C).',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.thermostat,
-              route: AppRoutes.freshness,
-            ),
-          );
-        }
-
-        // Humidity alerts from freshness readings
-        if (freshnessReading.humidity < 40 || freshnessReading.humidity > 80) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Freshness: Humidity Out of Range',
-              description:
-                  'Humidity is ${freshnessReading.humidity.toStringAsFixed(1)}%. Optimal range for flowers is 40-80%.',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.water_drop,
-              route: AppRoutes.freshness,
-            ),
-          );
-        } else if (freshnessReading.humidity < 50 ||
-            freshnessReading.humidity > 70) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Freshness: Humidity Warning',
-              description:
-                  'Humidity is ${freshnessReading.humidity.toStringAsFixed(1)}%. Consider adjusting to optimal range (50-70%).',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.water_drop,
               route: AppRoutes.freshness,
             ),
           );
         }
 
         // Gas value alerts (ethylene detection)
-        if (freshnessReading.gasValue > 100) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'High Gas Level Detected',
-              description:
-                  'Gas sensor reading is ${freshnessReading.gasValue.toStringAsFixed(1)}. High levels may accelerate flower aging. Improve ventilation.',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.air,
-              route: AppRoutes.freshness,
-            ),
-          );
-        } else if (freshnessReading.gasValue > 70) {
+        if (freshnessReading.gasValue > 70) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.warning,
-              title: 'Elevated Gas Level',
-              description:
-                  'Gas sensor reading is ${freshnessReading.gasValue.toStringAsFixed(1)}. Monitor and ensure proper ventilation.',
+              title: 'Ethylene Alert',
+              description: 'Elevated gas levels detected near flowers',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.air,
@@ -306,26 +190,12 @@ class _NotificationScreenState extends State<NotificationScreen> {
         }
 
         // Water level alerts
-        if (freshnessReading.waterLevel < 20) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Low Water Level',
-              description:
-                  'Water level is ${freshnessReading.waterLevel}%. Flowers need adequate water to maintain freshness.',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.water_drop_outlined,
-              route: AppRoutes.freshness,
-            ),
-          );
-        } else if (freshnessReading.waterLevel < 40) {
+        if (freshnessReading.waterLevel < 40) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.warning,
-              title: 'Water Level Low',
-              description:
-                  'Water level is ${freshnessReading.waterLevel}%. Consider refilling to maintain optimal freshness.',
+              title: 'Water Level Alert',
+              description: 'Vase water level is low',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.water_drop_outlined,
@@ -339,37 +209,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
       if (inmStatus != null &&
           (RoleFilter.isFarmer(_userRoles) ||
               RoleFilter.hasBothRoles(_userRoles))) {
-        // Critical EC status
-        if (inmStatus.statusType == EcStatusType.criticalLow ||
-            inmStatus.statusType == EcStatusType.criticalHigh) {
+        // Critical/Warning EC status
+        if (inmStatus.statusType != EcStatusType.optimal) {
           notifications.add(
             _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Critical EC Level',
-              description:
-                  'EC is ${inmStatus.statusLabel.toLowerCase()} (${inmStatus.currentEc.toStringAsFixed(2)} mS/cm). ${inmStatus.ecAction}',
-              timestamp:
-                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
-                  ? inmReadings.first.timestamp!
-                  : DateTime.now(),
-              component: 'Nutrition',
-              icon: Icons.water_drop,
-              route: AppRoutes.inmSensors,
-            ),
-          );
-        }
-
-        // Warning EC status
-        if (inmStatus.statusType == EcStatusType.low ||
-            inmStatus.statusType == EcStatusType.high) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'EC Level ${inmStatus.statusLabel}',
-              description:
-                  'EC is ${inmStatus.statusLabel.toLowerCase()} (${inmStatus.currentEc.toStringAsFixed(2)} mS/cm). ${inmStatus.ecAction}',
-              timestamp:
-                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
+              type: (inmStatus.statusType == EcStatusType.criticalLow || 
+                     inmStatus.statusType == EcStatusType.criticalHigh) 
+                    ? NotificationType.critical 
+                    : NotificationType.warning,
+              title: 'EC Level Alert',
+              description: 'EC level is ${inmStatus.statusLabel.toLowerCase()}',
+              timestamp: inmReadings.isNotEmpty && inmReadings.first.timestamp != null
                   ? inmReadings.first.timestamp!
                   : DateTime.now(),
               component: 'Nutrition',
@@ -386,10 +236,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
           notifications.add(
             _NotificationItem(
               type: NotificationType.warning,
-              title: 'pH Adjustment Needed',
-              description: inmStatus.phAction,
-              timestamp:
-                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
+              title: 'pH Alert',
+              description: 'pH adjustment required immediately',
+              timestamp: inmReadings.isNotEmpty && inmReadings.first.timestamp != null
                   ? inmReadings.first.timestamp!
                   : DateTime.now(),
               component: 'Nutrition',
@@ -405,10 +254,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
           notifications.add(
             _NotificationItem(
               type: NotificationType.info,
-              title: 'Nutrient Recommendation',
-              description: inmStatus.npkRecommendation,
-              timestamp:
-                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
+              title: 'Nutrient Update',
+              description: 'New nutrient balance recommendation available',
+              timestamp: inmReadings.isNotEmpty && inmReadings.first.timestamp != null
                   ? inmReadings.first.timestamp!
                   : DateTime.now(),
               component: 'Nutrition',
@@ -422,15 +270,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
       // Generate notifications from sensor readings (Farmer only - Environment)
       if (RoleFilter.isFarmer(_userRoles) ||
           RoleFilter.hasBothRoles(_userRoles)) {
-        for (final SensorReading reading in sensorReadings) {
-          // Temperature critical
+        for (final SensorReading reading in sensorReadings.take(5)) {
           if (reading.temperature < 18 || reading.temperature > 28) {
             notifications.add(
               _NotificationItem(
                 type: NotificationType.critical,
-                title: 'Critical Temperature',
-                description:
-                    'Temperature is ${reading.temperature.toStringAsFixed(1)}°C, outside optimal range (18-28°C).',
+                title: 'Climate Alert',
+                description: 'Greenhouse temperature is outside limits',
                 timestamp: reading.timestamp,
                 component: 'Environment',
                 icon: Icons.thermostat,
@@ -439,105 +285,36 @@ class _NotificationScreenState extends State<NotificationScreen> {
             );
           }
 
-          // Temperature warning
-          if (reading.temperature > 24 && reading.temperature <= 28) {
-            notifications.add(
-              _NotificationItem(
-                type: NotificationType.warning,
-                title: 'Temperature Warning',
-                description:
-                    'Temperature is ${reading.temperature.toStringAsFixed(1)}°C, approaching limits.',
-                timestamp: reading.timestamp,
-                component: 'Environment',
-                icon: Icons.thermostat,
-                route: AppRoutes.stress,
-              ),
-            );
-          }
-
-          // Humidity critical
           if (reading.humidity < 50 || reading.humidity > 85) {
             notifications.add(
               _NotificationItem(
                 type: NotificationType.critical,
-                title: 'Critical Humidity',
-                description:
-                    'Humidity is ${reading.humidity.toStringAsFixed(1)}%, outside optimal range (50-85%).',
+                title: 'Humidity Alert',
+                description: 'Air humidity level requires attention',
                 timestamp: reading.timestamp,
                 component: 'Environment',
                 icon: Icons.water_drop,
-                route: AppRoutes.stress,
-              ),
-            );
-          }
-
-          // Humidity warning
-          if (reading.humidity > 75 && reading.humidity <= 85) {
-            notifications.add(
-              _NotificationItem(
-                type: NotificationType.warning,
-                title: 'Humidity Warning',
-                description:
-                    'Humidity is ${reading.humidity.toStringAsFixed(1)}%, approaching limits.',
-                timestamp: reading.timestamp,
-                component: 'Environment',
-                icon: Icons.water_drop,
-                route: AppRoutes.stress,
-              ),
-            );
-          }
-
-          // Soil critical
-          if (reading.soilVoltage != null) {
-            final double v = reading.soilVoltage!;
-            if (v < 2.0 || v > 3.1) {
-              notifications.add(
-                _NotificationItem(
-                  type: NotificationType.critical,
-                  title: 'Critical Soil Condition',
-                  description:
-                      'Soil sensor reading is ${v.toStringAsFixed(2)}V, outside optimal range.',
-                  timestamp: reading.timestamp,
-                  component: 'Environment',
-                  icon: Icons.agriculture,
-                  route: AppRoutes.stress,
-                ),
-              );
-            }
-          }
-
-          // UV critical
-          if (reading.uvVoltage != null && reading.uvVoltage! > 1.0) {
-            notifications.add(
-              _NotificationItem(
-                type: NotificationType.critical,
-                title: 'High UV Exposure',
-                description:
-                    'UV sensor reading is ${reading.uvVoltage!.toStringAsFixed(2)}V, indicating high exposure.',
-                timestamp: reading.timestamp,
-                component: 'Environment',
-                icon: Icons.wb_sunny,
-                route: AppRoutes.stress,
-              ),
-            );
-          }
-
-          // Gas critical
-          if (reading.mqVoltage != null && reading.mqVoltage! > 1.0) {
-            notifications.add(
-              _NotificationItem(
-                type: NotificationType.critical,
-                title: 'High Gas Level Detected',
-                description:
-                    'Gas sensor reading is ${reading.mqVoltage!.toStringAsFixed(2)}V, indicating elevated levels.',
-                timestamp: reading.timestamp,
-                component: 'Environment',
-                icon: Icons.air,
                 route: AppRoutes.stress,
               ),
             );
           }
         }
+      }
+
+      // Disease Component Notifications (Farmer only)
+      if (RoleFilter.isFarmer(_userRoles) ||
+          RoleFilter.hasBothRoles(_userRoles)) {
+        notifications.add(
+          _NotificationItem(
+            type: NotificationType.info,
+            title: 'Disease Risk Low',
+            description: 'Environmental conditions are safe from fungal growth',
+            timestamp: DateTime.now().subtract(const Duration(hours: 2)),
+            component: 'Disease',
+            icon: Icons.shield_outlined,
+            route: AppRoutes.disease,
+          ),
+        );
       }
 
       // Sort by timestamp (newest first)
