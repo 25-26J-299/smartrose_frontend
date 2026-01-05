@@ -210,30 +210,30 @@ class _InsightsScreenState extends State<InsightsScreen> {
       appBar: GradientHeader.buildAppBar(
         context: context,
         title: 'Insights',
-        onBackPressed: () => Navigator.of(context).pop(),
+        showBackButton: false,
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _errorMessage != null
-                ? _buildErrorView(scheme)
-                : SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: <Widget>[
-                        _buildFilterBar(scheme),
-                        const SizedBox(height: 16),
-                        _buildKeyInsights(scheme),
-                        const SizedBox(height: 24),
-                        _buildSystemHealthOverview(scheme),
-                        const SizedBox(height: 24),
-                        _buildSmartInsights(scheme),
-                        const SizedBox(height: 32),
-                      ],
-                    ),
-                  ),
+            ? _buildErrorView(scheme)
+            : SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    _buildFilterBar(scheme),
+                    const SizedBox(height: 16),
+                    _buildKeyInsights(scheme),
+                    const SizedBox(height: 24),
+                    _buildSystemHealthOverview(scheme),
+                    const SizedBox(height: 24),
+                    _buildSmartInsights(scheme),
+                    const SizedBox(height: 32),
+                  ],
+                ),
+              ),
       ),
     );
   }
@@ -279,13 +279,19 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   selectedColor: scheme.primary.withOpacity(0.2),
                   checkmarkColor: scheme.primary,
                   labelStyle: TextStyle(
-                    color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
-                      color: isSelected ? scheme.primary : scheme.outline.withOpacity(0.3),
+                      color: isSelected
+                          ? scheme.primary
+                          : scheme.outline.withOpacity(0.3),
                     ),
                   ),
                 ),
@@ -319,13 +325,19 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   selectedColor: scheme.primary.withOpacity(0.2),
                   checkmarkColor: scheme.primary,
                   labelStyle: TextStyle(
-                    color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
-                      color: isSelected ? scheme.primary : scheme.outline.withOpacity(0.3),
+                      color: isSelected
+                          ? scheme.primary
+                          : scheme.outline.withOpacity(0.3),
                     ),
                   ),
                 ),
@@ -400,7 +412,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                         children: [
                           Text(
                             insight.title,
-                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: scheme.onSurface,
                                 ),
@@ -408,7 +421,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                           const SizedBox(height: 4),
                           Text(
                             insight.message,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
                                   color: scheme.onSurfaceVariant,
                                   height: 1.2,
                                 ),
@@ -429,53 +443,65 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildSystemHealthOverview(ColorScheme scheme) {
-    final isFarmer = RoleFilter.isFarmer(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
-    final isFlorist = RoleFilter.isFlorist(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
+    final isFarmer =
+        RoleFilter.isFarmer(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
+    final isFlorist =
+        RoleFilter.isFlorist(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
 
     final List<Widget> gauges = [];
 
     if (isFarmer) {
-      gauges.add(_buildHealthGaugeCard(
-        title: 'Soil Nutrition Health',
-        status: 'Improving',
-        value: 0.8,
-        color: Colors.green,
-        scheme: scheme,
-      ));
-      gauges.add(_buildHealthGaugeCard(
-        title: 'Water Management Efficiency',
-        status: 'Stable',
-        value: 0.7,
-        color: scheme.primary,
-        scheme: scheme,
-      ));
-      gauges.add(_buildHealthGaugeCard(
-        title: 'Greenhouse Climate Stability',
-        status: 'Fluctuating',
-        value: 0.4,
-        color: Colors.orange,
-        scheme: scheme,
-      ));
+      gauges.add(
+        _buildHealthGaugeCard(
+          title: 'Soil Nutrition Health',
+          status: 'Improving',
+          value: 0.8,
+          color: Colors.green,
+          scheme: scheme,
+        ),
+      );
+      gauges.add(
+        _buildHealthGaugeCard(
+          title: 'Water Management Efficiency',
+          status: 'Stable',
+          value: 0.7,
+          color: scheme.primary,
+          scheme: scheme,
+        ),
+      );
+      gauges.add(
+        _buildHealthGaugeCard(
+          title: 'Greenhouse Climate Stability',
+          status: 'Fluctuating',
+          value: 0.4,
+          color: Colors.orange,
+          scheme: scheme,
+        ),
+      );
     }
 
     if (isFlorist) {
-      gauges.add(_buildHealthGaugeCard(
-        title: 'Overall Freshness',
-        status: 'Excellent',
-        value: 0.9,
-        color: Colors.green,
-        scheme: scheme,
-      ));
+      gauges.add(
+        _buildHealthGaugeCard(
+          title: 'Overall Freshness',
+          status: 'Excellent',
+          value: 0.9,
+          color: Colors.green,
+          scheme: scheme,
+        ),
+      );
     }
 
     if (RoleFilter.hasBothRoles(_userRoles)) {
-      gauges.add(_buildHealthGaugeCard(
-        title: 'Overall System Health',
-        status: 'Good',
-        value: 0.9,
-        color: Colors.green,
-        scheme: scheme,
-      ));
+      gauges.add(
+        _buildHealthGaugeCard(
+          title: 'Overall System Health',
+          status: 'Good',
+          value: 0.9,
+          color: Colors.green,
+          scheme: scheme,
+        ),
+      );
     }
 
     if (gauges.isEmpty) return const SizedBox.shrink();
@@ -488,9 +514,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
           Text(
             'System Health Overview',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                ),
+              fontWeight: FontWeight.bold,
+              color: scheme.onSurface,
+            ),
           ),
           const SizedBox(height: 16),
           GridView.count(
@@ -552,7 +578,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ),
                   Center(
                     child: Icon(
-                      value > 0.7 ? Icons.check_circle_outline : (value > 0.4 ? Icons.info_outline : Icons.warning_amber_rounded),
+                      value > 0.7
+                          ? Icons.check_circle_outline
+                          : (value > 0.4
+                                ? Icons.info_outline
+                                : Icons.warning_amber_rounded),
                       color: color,
                       size: 28,
                     ),
@@ -597,9 +627,9 @@ class _InsightsScreenState extends State<InsightsScreen> {
           Text(
             'Smart Insights',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                ),
+              fontWeight: FontWeight.bold,
+              color: scheme.onSurface,
+            ),
           ),
           const SizedBox(height: 16),
           ...insights.map(
@@ -638,10 +668,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
               child: Text(
                 insight.message,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: scheme.onSurface,
-                      height: 1.4,
-                      fontSize: 15,
-                    ),
+                  color: scheme.onSurface,
+                  height: 1.4,
+                  fontSize: 15,
+                ),
               ),
             ),
           ],
@@ -652,8 +682,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   List<_KeyInsight> _getKeyInsights() {
     final List<_KeyInsight> insights = <_KeyInsight>[];
-    final isFarmer = RoleFilter.isFarmer(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
-    final isFlorist = RoleFilter.isFlorist(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
+    final isFarmer =
+        RoleFilter.isFarmer(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
+    final isFlorist =
+        RoleFilter.isFlorist(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
 
     if (isFarmer) {
       final inmReadings = _getFilteredInmReadings();
@@ -712,8 +744,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   List<_SmartInsight> _getSmartInsights() {
     final List<_SmartInsight> insights = <_SmartInsight>[];
-    final isFarmer = RoleFilter.isFarmer(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
-    final isFlorist = RoleFilter.isFlorist(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
+    final isFarmer =
+        RoleFilter.isFarmer(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
+    final isFlorist =
+        RoleFilter.isFlorist(_userRoles) || RoleFilter.hasBothRoles(_userRoles);
 
     if (isFarmer) {
       insights.add(
