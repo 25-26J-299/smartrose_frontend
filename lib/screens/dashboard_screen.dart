@@ -775,7 +775,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 1.1,
+        childAspectRatio: 1.0,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -817,6 +817,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
@@ -830,17 +831,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                   color: component.accentColor,
                 ),
               ),
-              const Spacer(),
-              Text(
-                component.name,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
-                  height: 1.3,
+              const SizedBox(height: 12),
+              Flexible(
+                child: Text(
+                  component.name,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.onSurface,
+                    height: 1.3,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
