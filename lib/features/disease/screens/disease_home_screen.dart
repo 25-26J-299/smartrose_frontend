@@ -8,7 +8,7 @@ class DiseaseHomeScreen extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
