@@ -57,8 +57,7 @@ class _MenuScreenState extends State<MenuScreen> {
       appBar: GradientHeader.buildAppBar(
         context: context,
         title: 'Menu',
-        showBackButton: true,
-        onBackPressed: () => Navigator.of(context).pop(),
+        showBackButton: false,
       ),
       body: SafeArea(
         child: RefreshIndicator(

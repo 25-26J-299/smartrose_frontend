@@ -123,7 +123,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
             _NotificationItem(
               type: NotificationType.critical,
               title: 'Critical Freshness',
-              description: 'Freshness score is critical (${score.toStringAsFixed(0)}%)',
+              description:
+                  'Freshness score is critical (${score.toStringAsFixed(0)}%)',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.warning,
@@ -135,7 +136,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
             _NotificationItem(
               type: NotificationType.warning,
               title: 'Freshness Update',
-              description: 'Freshness score is decreasing (${score.toStringAsFixed(0)}%)',
+              description:
+                  'Freshness score is decreasing (${score.toStringAsFixed(0)}%)',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.local_florist,
@@ -161,7 +163,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
         }
 
         // Temperature alerts from freshness readings
-        if (freshnessReading.temperature < 15 || freshnessReading.temperature > 25) {
+        if (freshnessReading.temperature < 15 ||
+            freshnessReading.temperature > 25) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.critical,
@@ -214,13 +217,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
         if (inmStatus.statusType != EcStatusType.optimal) {
           notifications.add(
             _NotificationItem(
-              type: (inmStatus.statusType == EcStatusType.criticalLow || 
-                     inmStatus.statusType == EcStatusType.criticalHigh) 
-                    ? NotificationType.critical 
-                    : NotificationType.warning,
+              type:
+                  (inmStatus.statusType == EcStatusType.criticalLow ||
+                      inmStatus.statusType == EcStatusType.criticalHigh)
+                  ? NotificationType.critical
+                  : NotificationType.warning,
               title: 'EC Level Alert',
               description: 'EC level is ${inmStatus.statusLabel.toLowerCase()}',
-              timestamp: inmReadings.isNotEmpty && inmReadings.first.timestamp != null
+              timestamp:
+                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
                   ? inmReadings.first.timestamp!
                   : DateTime.now(),
               component: 'Nutrition',
@@ -239,7 +244,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
               type: NotificationType.warning,
               title: 'pH Alert',
               description: 'pH adjustment required immediately',
-              timestamp: inmReadings.isNotEmpty && inmReadings.first.timestamp != null
+              timestamp:
+                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
                   ? inmReadings.first.timestamp!
                   : DateTime.now(),
               component: 'Nutrition',
@@ -257,7 +263,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
               type: NotificationType.info,
               title: 'Nutrient Update',
               description: 'New nutrient balance recommendation available',
-              timestamp: inmReadings.isNotEmpty && inmReadings.first.timestamp != null
+              timestamp:
+                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
                   ? inmReadings.first.timestamp!
                   : DateTime.now(),
               component: 'Nutrition',
@@ -352,7 +359,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       appBar: GradientHeader.buildAppBar(
         context: context,
         title: 'Notifications',
-        onBackPressed: () => Navigator.of(context).pop(),
+        showBackButton: false,
       ),
       body: RefreshIndicator(
         onRefresh: _loadNotifications,
