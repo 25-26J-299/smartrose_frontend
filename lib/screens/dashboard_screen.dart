@@ -8,6 +8,7 @@ import '../../core/app_routes.dart';
 import '../../core/auth/auth_state.dart';
 import '../shared/models/weather_model.dart';
 import '../shared/services/weather_api_service.dart';
+import '../shared/utils/role_filter.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -27,13 +28,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   String? _weatherError;
   String _searchQuery = '';
 
-  static final List<_ComponentCard> _components = <_ComponentCard>[
+  static final List<_ComponentCard> _allComponents = <_ComponentCard>[
     _ComponentCard(
       name: 'Intelligent Nutrition Management',
       icon: Icons.eco_rounded,
       route: AppRoutes.inmSensors,
       status: ComponentStatus.normal,
       accentColor: const Color(0xFF4CAF50),
+      componentType: 'inm',
     ),
     _ComponentCard(
       name: 'Disease Detection',
@@ -41,6 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       route: AppRoutes.disease,
       status: ComponentStatus.warning,
       accentColor: const Color(0xFFFFB300),
+      componentType: 'disease',
     ),
     _ComponentCard(
       name: 'Environmental Monitoring',
@@ -48,6 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       route: AppRoutes.stress,
       status: ComponentStatus.normal,
       accentColor: const Color(0xFF42A5F5),
+      componentType: 'environment',
     ),
     _ComponentCard(
       name: 'Freshness Monitoring',
@@ -55,6 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       route: AppRoutes.freshness,
       status: ComponentStatus.normal,
       accentColor: const Color(0xFFE91E63),
+      componentType: 'freshness',
     ),
   ];
 
@@ -712,10 +717,21 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildComponentCards(BuildContext context, ColorScheme scheme) {
+    // Get user roles for filtering
+    final AuthState authState = context.watch<AuthState>();
+    final List<String> roles = authState.roles;
+
+    // Filter components based on user roles
+    final roleFilteredComponents = RoleFilter.filterComponents(
+      allComponents: _allComponents,
+      roles: roles,
+      getComponentType: (component) => component.componentType,
+    );
+
     // Filter components based on search query
     final filteredComponents = _searchQuery.isEmpty
-        ? _components
-        : _components
+        ? roleFilteredComponents
+        : roleFilteredComponents
               .where(
                 (component) =>
                     component.name.toLowerCase().contains(_searchQuery),
@@ -843,6 +859,7 @@ class _ComponentCard {
     required this.route,
     required this.status,
     required this.accentColor,
+    required this.componentType,
   });
 
   final String name;
@@ -850,4 +867,5 @@ class _ComponentCard {
   final String route;
   final ComponentStatus status;
   final Color accentColor;
+  final String componentType;
 }

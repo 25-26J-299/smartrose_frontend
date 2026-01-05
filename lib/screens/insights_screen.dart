@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
+import '../core/auth/auth_state.dart';
 import '../features/inm/services/inm_api_service.dart';
 import '../features/inm/models/inm_sensor_reading.dart';
 import '../shared/services/freshness_api_service.dart';
@@ -9,6 +11,7 @@ import '../shared/models/reading_model.dart';
 import '../shared/models/prediction_model.dart';
 import '../shared/services/sensor_service.dart';
 import '../shared/models/sensor_data.dart';
+import '../shared/utils/role_filter.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -21,13 +24,20 @@ class _InsightsScreenState extends State<InsightsScreen> {
   String _selectedComponent = 'All';
   String _selectedTimeRange = 'Last 7 Days';
 
-  final List<String> _components = [
-    'All',
-    'Nutrition',
-    'Environment',
-    'Disease',
-    'Freshness',
-  ];
+  List<String> _getAvailableComponents(BuildContext context) {
+    final AuthState authState = context.watch<AuthState>();
+    final List<String> roles = authState.roles;
+    final List<String> components = ['All'];
+
+    if (RoleFilter.isFarmer(roles) || RoleFilter.hasBothRoles(roles)) {
+      components.addAll(['Nutrition', 'Environment', 'Disease']);
+    }
+    if (RoleFilter.isFlorist(roles) || RoleFilter.hasBothRoles(roles)) {
+      components.add('Freshness');
+    }
+
+    return components;
+  }
 
   final List<String> _timeRanges = ['Today', 'Last 7 Days', 'Last 30 Days'];
 
@@ -39,6 +49,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   // Data state
   bool _isLoading = false;
   String? _errorMessage;
+  List<String> _userRoles = [];
 
   List<InmSensorReading> _inmReadings = [];
   List<ReadingModel> _freshnessReadings = [];
@@ -140,6 +151,13 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   List<InmSensorReading> _getFilteredInmReadings() {
     final startDate = _getStartDate();
+
+    // Only show INM data if user is farmer or has both roles
+    if (!RoleFilter.isFarmer(_userRoles) &&
+        !RoleFilter.hasBothRoles(_userRoles)) {
+      return [];
+    }
+
     return _inmReadings.where((reading) {
       if (reading.timestamp == null) return false;
       if (_selectedComponent != 'All' && _selectedComponent != 'Nutrition') {
@@ -151,6 +169,13 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   List<ReadingModel> _getFilteredFreshnessReadings() {
     final startDate = _getStartDate();
+
+    // Only show Freshness data if user is florist or has both roles
+    if (!RoleFilter.isFlorist(_userRoles) &&
+        !RoleFilter.hasBothRoles(_userRoles)) {
+      return [];
+    }
+
     return _freshnessReadings.where((reading) {
       if (_selectedComponent != 'All' && _selectedComponent != 'Freshness') {
         return false;
@@ -161,6 +186,13 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
   List<SensorReading> _getFilteredSensorReadings() {
     final startDate = _getStartDate();
+
+    // Only show Environment data if user is farmer or has both roles
+    if (!RoleFilter.isFarmer(_userRoles) &&
+        !RoleFilter.hasBothRoles(_userRoles)) {
+      return [];
+    }
+
     return _sensorReadings.where((reading) {
       if (_selectedComponent != 'All' && _selectedComponent != 'Environment') {
         return false;
@@ -172,6 +204,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
+    final AuthState authState = context.watch<AuthState>();
+    _userRoles = authState.roles;
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerHighest,
@@ -275,6 +309,19 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Widget _buildFilterBar(ColorScheme scheme) {
+    final availableComponents = _getAvailableComponents(context);
+
+    // Reset selection if current selection is not available
+    if (!availableComponents.contains(_selectedComponent)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _selectedComponent = 'All';
+          });
+        }
+      });
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -282,8 +329,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
           Expanded(
             child: _buildFilterDropdown(
               label: 'Component',
-              value: _selectedComponent,
-              items: _components,
+              value: availableComponents.contains(_selectedComponent)
+                  ? _selectedComponent
+                  : 'All',
+              items: availableComponents,
               onChanged: (String? value) {
                 if (value != null) {
                   setState(() {
@@ -515,13 +564,38 @@ class _InsightsScreenState extends State<InsightsScreen> {
   bool _shouldShowChart(String metric) {
     switch (_selectedComponent) {
       case 'Nutrition':
+        if (!RoleFilter.isFarmer(_userRoles) &&
+            !RoleFilter.hasBothRoles(_userRoles)) {
+          return false;
+        }
         return metric == 'Soil Moisture' || metric == 'EC';
       case 'Environment':
+        if (!RoleFilter.isFarmer(_userRoles) &&
+            !RoleFilter.hasBothRoles(_userRoles)) {
+          return false;
+        }
         return metric == 'Temperature' || metric == 'Humidity';
       case 'Freshness':
+        if (!RoleFilter.isFlorist(_userRoles) &&
+            !RoleFilter.hasBothRoles(_userRoles)) {
+          return false;
+        }
         return metric == 'Temperature' || metric == 'Humidity';
       default:
-        return true;
+        // Show all charts if user has both roles, otherwise filter
+        if (RoleFilter.hasBothRoles(_userRoles)) {
+          return true;
+        }
+        if (RoleFilter.isFarmer(_userRoles)) {
+          return metric == 'Soil Moisture' ||
+              metric == 'EC' ||
+              metric == 'Temperature' ||
+              metric == 'Humidity';
+        }
+        if (RoleFilter.isFlorist(_userRoles)) {
+          return metric == 'Temperature' || metric == 'Humidity';
+        }
+        return false;
     }
   }
 
@@ -705,7 +779,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   List<_KeyInsight> _getKeyInsights() {
     final List<_KeyInsight> insights = <_KeyInsight>[];
 
-    // EC Trend from INM
+    // EC Trend from INM (Farmer only)
     final inmReadings = _getFilteredInmReadings();
     if (inmReadings.length >= 2) {
       final recent = inmReadings.take(5).toList();
@@ -770,7 +844,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       );
     }
 
-    // Temperature from multiple sources
+    // Temperature from multiple sources (Farmer only)
     final sensorReadings = _getFilteredSensorReadings();
     if (sensorReadings.isNotEmpty) {
       final temps = sensorReadings.map((r) => r.temperature).toList();
@@ -811,8 +885,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
   List<_SmartInsight> _getSmartInsights() {
     final List<_SmartInsight> insights = <_SmartInsight>[];
 
-    // Freshness prediction insight
-    if (_latestPrediction != null) {
+    // Freshness prediction insight (Florist only)
+    if (_latestPrediction != null &&
+        (RoleFilter.isFlorist(_userRoles) ||
+            RoleFilter.hasBothRoles(_userRoles))) {
       final score = _latestPrediction!.freshnessScore;
       if (score >= 70) {
         insights.add(
@@ -833,7 +909,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       }
     }
 
-    // EC trend insight
+    // EC trend insight (Farmer only)
     final inmReadings = _getFilteredInmReadings();
     if (inmReadings.length >= 2) {
       final recent = inmReadings.take(3).toList();
@@ -850,7 +926,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       }
     }
 
-    // Disease risk (based on environment)
+    // Disease risk (based on environment) (Farmer only)
     final sensorReadings = _getFilteredSensorReadings();
     if (sensorReadings.isNotEmpty) {
       final avgHumidity =
@@ -867,7 +943,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       }
     }
 
-    // Irrigation insight
+    // Irrigation insight (Farmer only)
     if (inmReadings.isNotEmpty) {
       final latest = inmReadings.first;
       if (latest.soilMoisture >= 40 && latest.soilMoisture <= 60) {
