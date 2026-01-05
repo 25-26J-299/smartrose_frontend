@@ -11,6 +11,7 @@ import '../shared/models/prediction_model.dart';
 import '../shared/services/sensor_service.dart';
 import '../shared/models/sensor_data.dart';
 import '../shared/utils/role_filter.dart';
+import '../shared/widgets/gradient_header.dart';
 
 class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
@@ -206,23 +207,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerHighest,
-      appBar: AppBar(
-        title: const Text('Insights'),
-        centerTitle: false,
-        titleTextStyle: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: scheme.onSurface,
-            ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => _showInfoTooltip(context),
-            tooltip: 'Summarized trends across all SmartRose components',
-          ),
-        ],
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
+      appBar: GradientHeader.buildAppBar(
+        context: context,
+        title: 'Insights',
+        onBackPressed: () => Navigator.of(context).pop(),
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -235,15 +223,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                          child: Text(
-                            'Greenhouse trends & analysis',
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                          ),
-                        ),
                         _buildFilterBar(scheme),
                         const SizedBox(height: 16),
                         _buildKeyInsights(scheme),
