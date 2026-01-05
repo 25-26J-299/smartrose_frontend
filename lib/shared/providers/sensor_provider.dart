@@ -219,18 +219,13 @@ class SensorProvider extends ChangeNotifier {
         endDate: utcEndDate,
       );
 
-      // Convert UTC timestamps to Sri Lanka time for date comparison
-      DateTime _toSriLanka(DateTime dt) {
-        final DateTime utc = dt.isUtc ? dt : dt.toUtc();
-        return utc.add(const Duration(hours: 5, minutes: 30));
-      }
-
       // Client-side filtering by date in Sri Lanka timezone
       List<SensorReading> filtered = history;
       
       if (startDate != null || endDate != null) {
         filtered = filtered.where((SensorReading r) {
-          final DateTime slTime = _toSriLanka(r.displayTime);
+          // Backend sends IST time directly, so use displayTime as-is
+          final DateTime slTime = r.displayTime;
           // Extract just the date part (year, month, day) in Sri Lanka time
           final int slYear = slTime.year;
           final int slMonth = slTime.month;
