@@ -22,16 +22,30 @@ class AuthState extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   Future<void> restoreSession() async {
-    _token = await _authService.loadToken();
-    if (_token != null) {
-      _user = await _authService.fetchProfile(_token!);
-      if (_user == null) {
-        await _authService.clearToken();
-        _token = null;
+    try {
+      _token = await _authService.loadToken();
+      if (_token != null) {
+        try {
+          _user = await _authService.fetchProfile(_token!);
+          if (_user == null) {
+            await _authService.clearToken();
+            _token = null;
+          }
+        } catch (e) {
+          // If profile fetch fails, clear token and continue
+          debugPrint('Error fetching profile: $e');
+          await _authService.clearToken();
+          _token = null;
+        }
       }
+    } catch (e) {
+      // If token loading fails, continue without authentication
+      debugPrint('Error restoring session: $e');
+      _token = null;
+    } finally {
+      _initializing = false;
+      notifyListeners();
     }
-    _initializing = false;
-    notifyListeners();
   }
 
   Future<bool> register(String name, String email, String password) async {
@@ -52,16 +66,23 @@ class AuthState extends ChangeNotifier {
 
   Future<bool> login(String email, String password) async {
     _errorMessage = null;
-    final AuthResult? result = await _authService.login(email, password);
-    if (result == null) {
-      _errorMessage = 'Invalid credentials. Please try again.';
+    try {
+      final AuthResult? result = await _authService.login(email, password);
+      if (result == null) {
+        _errorMessage = 'Invalid credentials. Please try again.';
+        notifyListeners();
+        return false;
+      }
+      _user = result.user;
+      _token = result.token;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Login error in AuthState: $e');
+      _errorMessage = 'Network error. Please check your connection and try again.';
       notifyListeners();
       return false;
     }
-    _user = result.user;
-    _token = result.token;
-    notifyListeners();
-    return true;
   }
 
   Future<bool> updateRoles(List<String> newRoles) async {

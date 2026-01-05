@@ -1,19 +1,14 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
+import '../../core/config/app_config.dart';
 
 /// Lightweight HTTP helper so feature services can share base URL logic.
 class ApiService {
   ApiService({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ??
-            const String.fromEnvironment(
-              'SMARTROSE_API_BASE',
-              defaultValue: kIsWeb
-                  ? 'http://localhost:8000/api/v1'
-                  : 'http://10.0.2.2:8000/api/v1',
-            );
+        _baseUrl = baseUrl ?? getApiBaseUrl();
 
   final http.Client _client;
   final String _baseUrl;

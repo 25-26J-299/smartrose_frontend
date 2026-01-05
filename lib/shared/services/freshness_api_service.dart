@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../core/config/app_config.dart';
 import '../models/prediction_model.dart';
 import '../models/reading_model.dart';
 
@@ -8,7 +9,7 @@ class FreshnessApiService {
   FreshnessApiService({String? baseUrl}) {
     _dio = Dio(
       BaseOptions(
-        baseUrl: baseUrl ?? 'http://localhost:8000/api/v1',
+        baseUrl: baseUrl ?? getApiBaseUrl(),
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: <String, dynamic>{

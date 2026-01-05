@@ -211,3 +211,102 @@ __marimo__/
 
 # Flutter / Dart tool artifacts
 .dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+flutter_*.png
+linked_*.ds
+unlinked.ds
+unlinked_spec.ds
+
+# IDE - Visual Studio Code
+.vscode/
+*.code-workspace
+
+# IDE - Cursor
+.cursor/
+
+# iOS/macOS - Generated Flutter files (DO NOT COMMIT)
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Podfile.lock
+ios/.symlinks/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+
+macos/Flutter/Generated.xcconfig
+macos/Flutter/ephemeral/
+macos/Podfile.lock
+macos/.symlinks/
+macos/Flutter/App.framework
+macos/Flutter/Flutter.framework
+macos/Flutter/Flutter.podspec
+macos/ServiceDefinitions.json
+
+# NOTE: The following files SHOULD be committed:
+# - ios/Flutter/Debug.xcconfig (build configuration)
+# - ios/Flutter/Release.xcconfig (build configuration)
+# - macos/Flutter/Flutter-Debug.xcconfig (build configuration)
+# - macos/Flutter/Flutter-Release.xcconfig (build configuration)
+# - ios/Podfile (CocoaPods dependency specification)
+# - macos/Podfile (CocoaPods dependency specification)
+# - ios/Runner.xcodeproj/project.pbxproj (Xcode project file)
+# - ios/Runner.xcworkspace/contents.xcworkspacedata (Xcode workspace file)
+# - macos/Runner.xcodeproj/project.pbxproj (Xcode project file)
+# - macos/Runner.xcworkspace/contents.xcworkspacedata (Xcode workspace file)
+
+# Xcode - Auto-generated files
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
+DerivedData/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+*.class
+bin/
+gen/
+out/
+.gradle/
+local.properties
+proguard/
+*.iml
+*.hprof
+.cxx/
+.externalNativeBuild
+local.properties
+
+# Web
+.webpack/
+
+# Coverage
+coverage/
+*.lcov
+
+# Miscellaneous
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
