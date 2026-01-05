@@ -60,7 +60,10 @@ class SensorReading {
       if (value is String && value.isNotEmpty) {
         final DateTime? parsed = DateTime.tryParse(value);
         if (parsed != null) {
-          return parsed.toUtc();
+          // Backend now sends IST (Sri Lankan time) directly, not UTC
+          // So we treat the parsed datetime as local time (IST)
+          // No timezone conversion needed - backend already did it
+          return parsed;
         }
       }
       return null;
