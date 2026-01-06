@@ -1083,125 +1083,151 @@ class _ModernPredictionCard extends StatelessWidget {
     
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: isMobile ? 12 : 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Color.lerp(Colors.white, stressColor, 0.05),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
+            color: stressColor.withOpacity(0.08),
+            blurRadius: 24,
             spreadRadius: 0,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
+          // Top Row: Analysis Label & Timestamp
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: stressColor.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
+              Row(
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: stressColor,
+                      shape: BoxShape.circle,
                     ),
-                  ],
-                ),
-                child: Icon(Icons.psychology, color: stressColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Stress:',
-                style: TextStyle(
-                  fontSize: isMobile ? 13 : 14,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                prediction.stressLabel,
-                style: TextStyle(
-                  fontSize: isMobile ? 22 : 26,
-                  fontWeight: FontWeight.w900,
-                  color: stressColor,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: stressColor.withOpacity(0.2)),
-                ),
-                child: Text(
-                  '${(prediction.highestProbability * 100).toStringAsFixed(0)}% Confidence',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: stressColor,
                   ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'ML STRESS ANALYSIS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.grey.shade500,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                formatted,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          
+          // Middle Row: Status & Confidence
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.psychology_outlined,
+                    color: stressColor,
+                    size: isMobile ? 42 : 48,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    prediction.stressLabel,
+                    style: TextStyle(
+                      fontSize: isMobile ? 34 : 40,
+                      fontWeight: FontWeight.w900,
+                      color: stressColor,
+                      letterSpacing: -1.0,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                decoration: BoxDecoration(
+                  color: stressColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: stressColor.withOpacity(0.2), width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      '${(prediction.highestProbability * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        color: stressColor,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'CONFIDENCE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        color: stressColor.withOpacity(0.8),
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Recommendation Box
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.grey.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(10),
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(14),
+              border: Border(
+                left: BorderSide(color: stressColor, width: 4),
+              ),
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(Icons.lightbulb_outline, color: stressColor, size: 16),
-                const SizedBox(width: 8),
-                Flexible(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: stressColor,
+                  size: 18,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Text(
                     recommendation,
-                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: isMobile ? 11 : 12,
-                      color: Colors.grey.shade700,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 14,
+                      color: Colors.grey.shade800,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 12),
-          // Moved time and date here
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(
-                Icons.schedule,
-                size: 12,
-                color: Colors.grey.shade500,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'Updated: $formatted',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
           ),
         ],
       ),
