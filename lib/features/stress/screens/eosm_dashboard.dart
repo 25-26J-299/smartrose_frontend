@@ -61,7 +61,6 @@ class _DashboardView extends StatelessWidget {
           'ALL',
           ...provider.availableGreenhouseIds,
         ];
-        final Map<String, String?> ghStations = provider.greenhouseBaseStations;
         final String selectedGh = provider.selectedGreenhouseId ?? 'ALL';
 
         if (provider.isLoading && latest == null) {
@@ -70,30 +69,28 @@ class _DashboardView extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: const Color(0xFFF5F5F5),
-          appBar: GradientHeader.buildAppBar(
-            context: context,
-            title: 'Stress Monitoring',
-            onBackPressed: () => Navigator.of(context).pop(),
-            actions: [
-              _buildGreenhouseSelector(
-                context: context,
-                options: greenhouseOptions,
-                selected: selectedGh,
-                stations: ghStations,
-                onSelect: provider.setSelectedGreenhouse,
-              ),
-            ],
-          ),
-          body: RefreshIndicator(
-            onRefresh: () => provider.refresh(force: true),
-            child: LayoutBuilder(
-              builder: (BuildContext context, BoxConstraints constraints) {
-                final bool isMobile = constraints.maxWidth < 600;
-                final double padding = isMobile ? 16.0 : 24.0;
-                return ListView(
-                  padding: EdgeInsets.all(padding),
-                  children: <Widget>[
-                    if (prediction != null) ...[
+                      appBar: GradientHeader.buildAppBar(
+                        context: context,
+                        title: 'Stress Monitoring',
+                        onBackPressed: () => Navigator.of(context).pop(),
+                      ),
+                      body: RefreshIndicator(
+                        onRefresh: () => provider.refresh(force: true),
+                        child: LayoutBuilder(
+                          builder: (BuildContext context, BoxConstraints constraints) {
+                            final bool isMobile = constraints.maxWidth < 600;
+                            final double padding = isMobile ? 16.0 : 24.0;
+                            return ListView(
+                              padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
+                              children: <Widget>[
+                                _buildGreenhouseFilterBar(
+                                  options: greenhouseOptions,
+                                  selected: selectedGh,
+                                  onSelect: provider.setSelectedGreenhouse,
+                                  isMobile: isMobile,
+                                ),
+                                const SizedBox(height: 16),
+                                if (prediction != null) ...[
                       _ModernPredictionCard(
                         prediction: prediction,
                         isMobile: isMobile,
@@ -113,13 +110,14 @@ class _DashboardView extends StatelessWidget {
                         message: 'No readings for this selection.',
                         onRetry: () => provider.refresh(force: true),
                       ),
-                    Text(
-                      'Trends',
-                      style: (isMobile ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
+                                Text(
+                                  'Trends',
+                                  style: (isMobile ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                    color: Colors.black,
+                                  ),
+                                ),
                     SizedBox(height: isMobile ? 8 : 12),
                     if (history.length >= 2)
                       _TrendGrid(readings: history, isMobile: isMobile)
@@ -133,13 +131,14 @@ class _DashboardView extends StatelessWidget {
                         ? Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: <Widget>[
-                              Text(
-                                'History',
-                                style: textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                                          Text(
+                                            'History',
+                                            style: textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                              color: Colors.black,
+                                            ),
+                                          ),
                               const SizedBox(height: 8),
                               FilledButton.icon(
                                 onPressed: () => _showHistoryDialog(context, provider),
@@ -154,13 +153,14 @@ class _DashboardView extends StatelessWidget {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: <Widget>[
-                              Text(
-                                'History',
-                                style: textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
+                                          Text(
+                                            'History',
+                                            style: textTheme.titleLarge?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                              color: Colors.black,
+                                            ),
+                                          ),
                               FilledButton.icon(
                                 onPressed: () => _showHistoryDialog(context, provider),
                                 icon: const Icon(Icons.list_alt, size: 18),
@@ -739,80 +739,50 @@ String _formatDateTime(DateTime dt, {bool isMobile = false}) {
   }
 }
 
-Widget _buildGreenhouseSelector({
-  required BuildContext context,
+Widget _buildGreenhouseFilterBar({
   required List<String> options,
   required String selected,
-  required Map<String, String?> stations,
   required ValueChanged<String?> onSelect,
+  required bool isMobile,
 }) {
-  return PopupMenuButton<String>(
-    initialValue: selected,
-    onSelected: onSelect,
-    icon: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4CAF50).withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFF4CAF50).withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.agriculture, size: 16, color: Color(0xFF4CAF50)),
-          const SizedBox(width: 6),
-          Text(
-            selected == 'ALL' ? 'All' : selected,
-            style: const TextStyle(
+  return SizedBox(
+    height: 40,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: options.length,
+      separatorBuilder: (context, index) => const SizedBox(width: 8),
+      itemBuilder: (context, index) {
+        final String id = options[index];
+        final bool isSelected = selected == id;
+        
+        return ChoiceChip(
+          label: Text(
+            id == 'ALL' ? 'All Greenhouses' : id,
+            style: TextStyle(
+              color: isSelected ? const Color(0xFF1B5E20) : Colors.grey.shade700,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
               fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1B5E20),
             ),
           ),
-          const SizedBox(width: 2),
-          const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF4CAF50)),
-        ],
-      ),
+          selected: isSelected,
+          onSelected: (bool selected) {
+            if (selected) onSelect(id);
+          },
+          selectedColor: const Color(0xFF4CAF50).withOpacity(0.15),
+          backgroundColor: Colors.white,
+          checkmarkColor: const Color(0xFF1B5E20),
+          showCheckmark: false,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isSelected ? const Color(0xFF4CAF50) : Colors.grey.shade300,
+              width: 1.5,
+            ),
+          ),
+        );
+      },
     ),
-    tooltip: 'Select Greenhouse',
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    itemBuilder: (BuildContext context) => options.map((String id) {
-      return PopupMenuItem<String>(
-        value: id,
-        child: Row(
-          children: [
-            Icon(
-              id == 'ALL' ? Icons.grid_view : Icons.agriculture,
-              size: 18,
-              color: selected == id ? const Color(0xFF4CAF50) : Colors.grey,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                id == 'ALL' ? 'All Greenhouses' : id,
-                style: TextStyle(
-                  fontWeight: selected == id ? FontWeight.bold : FontWeight.normal,
-                  color: selected == id ? const Color(0xFF1B5E20) : null,
-                ),
-              ),
-            ),
-            if (stations[id] != null) ...[
-              const SizedBox(width: 8),
-              Text(
-                stations[id]!,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade500,
-                ),
-              ),
-            ],
-          ],
-        ),
-      );
-    }).toList(),
   );
 }
 
@@ -843,7 +813,7 @@ class _GaugeRow extends StatelessWidget {
                 min: 0,
                 max: 40,
                 segments: <GaugeSegment>[
-                  GaugeSegment(to: 40, color: const Color(0xFFFF6B35)),
+                  GaugeSegment(to: 40, color: const Color(0xFFFFCC80)), // Soft Orange (200)
                 ],
               ),
             ),
@@ -856,7 +826,7 @@ class _GaugeRow extends StatelessWidget {
                 min: 0,
                 max: 100,
                 segments: <GaugeSegment>[
-                  GaugeSegment(to: 100, color: const Color(0xFF2196F3)),
+                  GaugeSegment(to: 100, color: const Color(0xFF90CAF9)), // Soft Blue (200)
                 ],
               ),
             ),
@@ -901,31 +871,31 @@ class _TrendGridState extends State<_TrendGrid> {
       case _MetricType.temperature:
         title = 'Temperature (°C)';
         unit = '°C';
-        color = const Color(0xFFFF6B35);
+        color = const Color(0xFFFFCC80); // Soft Orange (200)
         points = _map(widget.readings, (SensorReading r) => r.temperature);
         break;
       case _MetricType.humidity:
         title = 'Humidity (%)';
         unit = '%';
-        color = const Color(0xFF2196F3);
+        color = const Color(0xFF90CAF9); // Soft Blue (200)
         points = _map(widget.readings, (SensorReading r) => r.humidity);
         break;
       case _MetricType.soilVoltage:
         title = 'Soil Voltage (V)';
         unit = 'V';
-        color = const Color(0xFF8B4513);
+        color = const Color(0xFFBCAAA4); // Soft Brown (200)
         points = _map(widget.readings, (SensorReading r) => r.soilVoltage);
         break;
       case _MetricType.gasVoltage:
         title = 'Gas Voltage (V)';
         unit = 'V';
-        color = const Color(0xFF9C27B0);
+        color = const Color(0xFFF48FB1); // Soft Rose (200)
         points = _map(widget.readings, (SensorReading r) => r.mqVoltage);
         break;
       case _MetricType.uvVoltage:
         title = 'UV Voltage (V)';
         unit = 'V';
-        color = const Color(0xFFFFC107);
+        color = const Color(0xFFFFE082); // Soft Yellow/Amber (200)
         points = _map(widget.readings, (SensorReading r) => r.uvVoltage);
         break;
     }
@@ -933,49 +903,23 @@ class _TrendGridState extends State<_TrendGrid> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SegmentedButton<_MetricType>(
-            segments: const <ButtonSegment<_MetricType>>[
-              ButtonSegment<_MetricType>(
-                value: _MetricType.temperature,
-                label: Text('Temp'),
-                icon: Icon(Icons.thermostat, size: 16),
-              ),
-              ButtonSegment<_MetricType>(
-                value: _MetricType.humidity,
-                label: Text('Hum'),
-                icon: Icon(Icons.water_drop, size: 16),
-              ),
-              ButtonSegment<_MetricType>(
-                value: _MetricType.soilVoltage,
-                label: Text('Soil'),
-                icon: Icon(Icons.grass, size: 16),
-              ),
-              ButtonSegment<_MetricType>(
-                value: _MetricType.gasVoltage,
-                label: Text('Gas'),
-                icon: Icon(Icons.air, size: 16),
-              ),
-              ButtonSegment<_MetricType>(
-                value: _MetricType.uvVoltage,
-                label: Text('UV'),
-                icon: Icon(Icons.wb_sunny, size: 16),
-              ),
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            children: <Widget>[
+              _buildMetricTab(_MetricType.temperature, 'Temp', Icons.thermostat, const Color(0xFFFFCC80)),
+              _buildMetricTab(_MetricType.humidity, 'Hum', Icons.water_drop, const Color(0xFF90CAF9)),
+              _buildMetricTab(_MetricType.soilVoltage, 'Soil', Icons.grass, const Color(0xFFBCAAA4)),
+              _buildMetricTab(_MetricType.gasVoltage, 'Gas', Icons.air, const Color(0xFFF48FB1)),
+              _buildMetricTab(_MetricType.uvVoltage, 'UV', Icons.wb_sunny, const Color(0xFFFFE082)),
             ],
-            selected: <_MetricType>{_selectedMetric},
-            onSelectionChanged: (Set<_MetricType> newSelection) {
-              setState(() {
-                _selectedMetric = newSelection.first;
-              });
-            },
-            showSelectedIcon: false,
-            style: SegmentedButton.styleFrom(
-              backgroundColor: Colors.white,
-              selectedBackgroundColor: color.withOpacity(0.1),
-              selectedForegroundColor: color,
-              side: BorderSide(color: Colors.grey.shade300),
-            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -988,6 +932,54 @@ class _TrendGridState extends State<_TrendGrid> {
           points: points,
         ),
       ],
+    );
+  }
+
+  Widget _buildMetricTab(_MetricType type, String label, IconData icon, Color color) {
+    final bool isSelected = _selectedMetric == type;
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedMetric = type),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? color : Colors.grey.shade500,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  color: isSelected ? Colors.black : Colors.grey.shade500,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1256,70 +1248,54 @@ class _MetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<_MetricItem> metrics = <_MetricItem>[
+      _MetricItem(
+        title: 'Soil Moisture',
+        value: latest.soilVoltage != null ? '${latest.soilVoltage!.toStringAsFixed(2)}V' : '—',
+        icon: Icons.grass,
+        color: const Color(0xFFBCAAA4), // Soft Brown (200)
+        bgColor: const Color(0xFFEFEBE9), // Brown 50
+      ),
+      _MetricItem(
+        title: 'UV Sensor',
+        value: latest.uvVoltage != null ? '${latest.uvVoltage!.toStringAsFixed(2)}V' : '—',
+        icon: Icons.wb_sunny,
+        color: const Color(0xFFFFE082), // Soft Amber (200)
+        bgColor: const Color(0xFFFFF8E1), // Amber 50
+      ),
+      _MetricItem(
+        title: 'Gas Sensor',
+        value: latest.mqVoltage != null ? '${latest.mqVoltage!.toStringAsFixed(2)}V' : '—',
+        icon: Icons.air,
+        color: const Color(0xFFF48FB1), // Soft Rose (200)
+        bgColor: const Color(0xFFFCE4EC), // Rose 50
+      ),
+      if (latest.greenhouseId != null)
+        _MetricItem(
+          title: 'Greenhouse',
+          value: latest.greenhouseId!,
+          icon: Icons.local_florist,
+          color: const Color(0xFFA5D6A7), // Soft Green (200)
+          bgColor: const Color(0xFFE8F5E9), // Green 50
+        ),
+    ];
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        // Responsive grid: 2 columns on mobile, 3-6 on desktop
-        final int columns = isMobile
-            ? 2
-            : constraints.maxWidth > 1200
-                ? 6
-                : constraints.maxWidth > 900
-                    ? 4
-                    : 3;
+        // Automatically adjust columns to fill space
+        int columns;
+        if (isMobile) {
+          columns = 2;
+        } else {
+          // On desktop, try to fit all in one row, but max 4
+          columns = metrics.length > 4 ? 4 : metrics.length;
+          // Ensure we don't have too many columns for small widths
+          if (constraints.maxWidth < 600) columns = 2;
+          else if (constraints.maxWidth < 900) columns = 3;
+        }
+
         final double spacing = isMobile ? 12 : 16;
         final double cardWidth = (constraints.maxWidth - (spacing * (columns - 1))) / columns;
-        
-        final List<_MetricItem> metrics = <_MetricItem>[
-          _MetricItem(
-            title: 'Temperature',
-            value: '${latest.temperature.toStringAsFixed(1)}°C',
-            icon: Icons.thermostat,
-            color: const Color(0xFFFF6B35), // Vibrant orange
-            bgColor: const Color(0xFFFFF3E0),
-          ),
-          _MetricItem(
-            title: 'Humidity',
-            value: '${latest.humidity.toStringAsFixed(1)}%',
-            icon: Icons.water_drop,
-            color: const Color(0xFF2196F3), // Bright blue
-            bgColor: const Color(0xFFE3F2FD),
-          ),
-          _MetricItem(
-            title: 'Soil Moisture',
-            value: latest.soilVoltage != null
-                ? '${latest.soilVoltage!.toStringAsFixed(2)}V'
-                : '—',
-            icon: Icons.grass,
-            color: const Color(0xFF8B4513), // Brown
-            bgColor: const Color(0xFFEFEBE9),
-          ),
-          _MetricItem(
-            title: 'UV Sensor',
-            value: latest.uvVoltage != null
-                ? '${latest.uvVoltage!.toStringAsFixed(2)}V'
-                : '—',
-            icon: Icons.wb_sunny,
-            color: const Color(0xFFFFC107), // Amber
-            bgColor: const Color(0xFFFFF9C4),
-          ),
-          _MetricItem(
-            title: 'Gas Sensor',
-            value: latest.mqVoltage != null
-                ? '${latest.mqVoltage!.toStringAsFixed(2)}V'
-                : '—',
-            icon: Icons.air,
-            color: const Color(0xFF9C27B0), // Purple
-            bgColor: const Color(0xFFF3E5F5),
-          ),
-          if (latest.greenhouseId != null)
-            _MetricItem(
-              title: 'Greenhouse',
-              value: latest.greenhouseId!,
-              icon: Icons.local_florist,
-              color: const Color(0xFF4CAF50), // Green
-              bgColor: const Color(0xFFE8F5E9),
-            ),
-        ];
 
         return Wrap(
           spacing: spacing,
@@ -1361,67 +1337,71 @@ class _ModernMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 12 : 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 16,
             spreadRadius: 0,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: <Widget>[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                padding: EdgeInsets.all(isMobile ? 12 : 14),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: <Color>[
-                      metric.bgColor,
-                      metric.bgColor.withOpacity(0.7),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(isMobile ? 14 : 16),
-                ),
-                child: Icon(
-                  metric.icon,
-                  color: metric.color,
-                  size: isMobile ? 26 : 32,
-                ),
+          // Visual (Icon) on the left
+          Container(
+            padding: EdgeInsets.all(isMobile ? 10 : 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: <Color>[
+                  metric.bgColor,
+                  metric.bgColor.withOpacity(0.7),
+                ],
               ),
-            ],
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              metric.icon,
+              color: metric.color,
+              size: isMobile ? 22 : 26,
+            ),
           ),
-          SizedBox(height: isMobile ? 14 : 18),
+          const SizedBox(width: 14),
+          // Data on the right
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
           Text(
             metric.title,
             style: TextStyle(
-              fontSize: isMobile ? 12 : 13,
-              color: Colors.grey.shade600,
+              fontSize: isMobile ? 11 : 12,
+              color: Colors.black87,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.3,
+              letterSpacing: 0.2,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          SizedBox(height: isMobile ? 6 : 8),
-          Text(
-            metric.value,
-            style: TextStyle(
-              fontSize: isMobile ? 24 : 28,
-              fontWeight: FontWeight.bold,
-              color: metric.color,
-              letterSpacing: 0.5,
-              height: 1.2,
+                const SizedBox(height: 2),
+                Text(
+                  metric.value,
+                  style: TextStyle(
+                    fontSize: isMobile ? 18 : 22,
+                    fontWeight: FontWeight.bold,
+                    color: metric.color,
+                    letterSpacing: 0.2,
+                    height: 1.1,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
