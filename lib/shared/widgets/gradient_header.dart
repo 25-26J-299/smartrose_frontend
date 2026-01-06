@@ -25,6 +25,7 @@ class GradientHeader extends StatelessWidget {
     VoidCallback? onBackPressed,
     bool showBackButton = true,
     Color? backgroundColor,
+    List<Widget>? actions,
   }) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final Color appBarColor = backgroundColor ?? scheme.surfaceContainerHighest;
@@ -57,6 +58,7 @@ class GradientHeader extends StatelessWidget {
         ),
       ),
       centerTitle: true,
+      actions: actions,
     );
   }
 

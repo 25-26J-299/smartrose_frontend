@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import '../../../shared/models/sensor_reading.dart';
 import '../../../shared/models/eosm_stress_prediction.dart';
 import '../../../shared/providers/sensor_provider.dart';
-import '../../../shared/utils/collection_extensions.dart';
 import '../../../shared/widgets/stress_gauge.dart';
 import '../../../shared/widgets/trend_chart.dart';
 import '../../../shared/widgets/gradient_header.dart';
@@ -51,7 +50,6 @@ class _DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
 
     return Consumer<SensorProvider>(
@@ -76,6 +74,15 @@ class _DashboardView extends StatelessWidget {
             context: context,
             title: 'Stress Monitoring',
             onBackPressed: () => Navigator.of(context).pop(),
+            actions: [
+              _buildGreenhouseSelector(
+                context: context,
+                options: greenhouseOptions,
+                selected: selectedGh,
+                stations: ghStations,
+                onSelect: provider.setSelectedGreenhouse,
+              ),
+            ],
           ),
           body: RefreshIndicator(
             onRefresh: () => provider.refresh(force: true),
@@ -86,24 +93,17 @@ class _DashboardView extends StatelessWidget {
                 return ListView(
                   padding: EdgeInsets.all(padding),
                   children: <Widget>[
-                    _ModernHeader(
-                      selectedGreenhouse: selectedGh,
-                      lastUpdated: latest?.displayTime,
-                      baseStationId: latest?.basestationId,
-                      scheme: scheme,
-                      greenhouseOptions: greenhouseOptions,
-                      greenhouseStations: ghStations,
-                      onSelect: provider.setSelectedGreenhouse,
-                      isMobile: isMobile,
-                    ),
-                    SizedBox(height: isMobile ? 16 : 24),
+                    if (prediction != null) ...[
+                      _ModernPredictionCard(
+                        prediction: prediction,
+                        isMobile: isMobile,
+                        lastUpdated: latest?.displayTime,
+                      ),
+                      SizedBox(height: isMobile ? 16 : 24),
+                    ],
                     if (provider.errorMessage != null && latest == null)
                       _ErrorBanner(message: provider.errorMessage!),
                     if (latest != null) ...<Widget>[
-                      if (prediction != null) ...<Widget>[
-                        _ModernPredictionCard(prediction: prediction, latest: latest, isMobile: isMobile),
-                        SizedBox(height: isMobile ? 16 : 24),
-                      ],
                       _MetricsGrid(latest: latest, isMobile: isMobile),
                       SizedBox(height: isMobile ? 16 : 24),
                       _GaugeRow(latest: latest, isMobile: isMobile),
@@ -739,6 +739,83 @@ String _formatDateTime(DateTime dt, {bool isMobile = false}) {
   }
 }
 
+Widget _buildGreenhouseSelector({
+  required BuildContext context,
+  required List<String> options,
+  required String selected,
+  required Map<String, String?> stations,
+  required ValueChanged<String?> onSelect,
+}) {
+  return PopupMenuButton<String>(
+    initialValue: selected,
+    onSelected: onSelect,
+    icon: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4CAF50).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF4CAF50).withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.agriculture, size: 16, color: Color(0xFF4CAF50)),
+          const SizedBox(width: 6),
+          Text(
+            selected == 'ALL' ? 'All' : selected,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1B5E20),
+            ),
+          ),
+          const SizedBox(width: 2),
+          const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF4CAF50)),
+        ],
+      ),
+    ),
+    tooltip: 'Select Greenhouse',
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    itemBuilder: (BuildContext context) => options.map((String id) {
+      return PopupMenuItem<String>(
+        value: id,
+        child: Row(
+          children: [
+            Icon(
+              id == 'ALL' ? Icons.grid_view : Icons.agriculture,
+              size: 18,
+              color: selected == id ? const Color(0xFF4CAF50) : Colors.grey,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                id == 'ALL' ? 'All Greenhouses' : id,
+                style: TextStyle(
+                  fontWeight: selected == id ? FontWeight.bold : FontWeight.normal,
+                  color: selected == id ? const Color(0xFF1B5E20) : null,
+                ),
+              ),
+            ),
+            if (stations[id] != null) ...[
+              const SizedBox(width: 8),
+              Text(
+                stations[id]!,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }).toList(),
+  );
+}
+
 class _GaugeRow extends StatelessWidget {
   const _GaugeRow({required this.latest, required this.isMobile});
 
@@ -985,35 +1062,28 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _ModernHeader extends StatelessWidget {
-  const _ModernHeader({
-    required this.selectedGreenhouse,
-    required this.lastUpdated,
-    required this.baseStationId,
-    required this.scheme,
-    required this.greenhouseOptions,
-    required this.greenhouseStations,
-    required this.onSelect,
+class _ModernPredictionCard extends StatelessWidget {
+  const _ModernPredictionCard({
+    required this.prediction,
     required this.isMobile,
+    this.lastUpdated,
   });
 
-  final String selectedGreenhouse;
-  final DateTime? lastUpdated;
-  final String? baseStationId;
-  final ColorScheme scheme;
-  final List<String> greenhouseOptions;
-  final Map<String, String?> greenhouseStations;
-  final ValueChanged<String?> onSelect;
+  final EosmStressPrediction prediction;
   final bool isMobile;
+  final DateTime? lastUpdated;
 
   @override
   Widget build(BuildContext context) {
+    final Color stressColor = prediction.stressColor;
+    final String recommendation = _getRecommendation(prediction.stressLabel);
     final String formatted = lastUpdated != null
         ? _formatDateTime(lastUpdated!, isMobile: isMobile)
         : 'Waiting for first reading';
     
     return Container(
-      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 20, vertical: isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -1027,242 +1097,83 @@ class _ModernHeader extends StatelessWidget {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Icon(
-                          Icons.schedule,
-                          size: isMobile ? 16 : 18,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          formatted,
-                          style: TextStyle(
-                            fontSize: isMobile ? 14 : 16,
-                            color: scheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: stressColor.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
                     ),
                   ],
                 ),
+                child: Icon(Icons.psychology, color: stressColor, size: 20),
               ),
-              Container(
-                width: isMobile ? 50 : 60,
-                height: isMobile ? 50 : 60,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFF4CAF50).withOpacity(0.3),
-                    width: 2,
-                  ),
+              const SizedBox(width: 12),
+              Text(
+                'Stress:',
+                style: TextStyle(
+                  fontSize: isMobile ? 13 : 14,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
                 ),
-                child: const Icon(
-                  Icons.local_florist,
-                  color: Color(0xFF4CAF50),
-                  size: 28,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                prediction.stressLabel,
+                style: TextStyle(
+                  fontSize: isMobile ? 22 : 26,
+                  fontWeight: FontWeight.w900,
+                  color: stressColor,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: stressColor.withOpacity(0.2)),
+                ),
+                child: Text(
+                  '${(prediction.highestProbability * 100).toStringAsFixed(0)}% Confidence',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: stressColor,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: <Widget>[
-                Icon(Icons.location_on, size: 18, color: const Color(0xFF4CAF50)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Nuwara Eliya · Sri Lanka',
-                    style: TextStyle(
-                      fontSize: isMobile ? 13 : 14,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF1B5E20),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
             width: double.infinity,
-            child: DropdownButtonFormField<String>(
-              value: greenhouseOptions.contains(selectedGreenhouse)
-                  ? selectedGreenhouse
-                  : greenhouseOptions.firstOrNull,
-              items: greenhouseOptions
-                  .map(
-                    (String id) => DropdownMenuItem<String>(
-                      value: id,
-                      child: Text(
-                        id == 'ALL'
-                            ? 'All Greenhouses'
-                            : '$id${greenhouseStations[id] != null ? ' · ${greenhouseStations[id]}' : ''}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: onSelect,
-              decoration: InputDecoration(
-                labelText: 'Select Greenhouse',
-                prefixIcon: const Icon(Icons.agriculture, color: Color(0xFF4CAF50)),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: const Color(0xFF4CAF50).withOpacity(0.3)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: const Color(0xFF4CAF50).withOpacity(0.3)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 2),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      );
-    }
-}
-
-class _ModernPredictionCard extends StatelessWidget {
-  const _ModernPredictionCard({
-    required this.prediction,
-    required this.latest,
-    required this.isMobile,
-  });
-
-  final EosmStressPrediction prediction;
-  final SensorReading latest;
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color stressColor = prediction.stressColor;
-    final String recommendation = _getRecommendation(prediction.stressLabel);
-    
-    return Container(
-      padding: EdgeInsets.all(isMobile ? 20 : 24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            stressColor.withOpacity(0.15),
-            stressColor.withOpacity(0.08),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: stressColor.withOpacity(0.3),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.psychology, color: stressColor, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      'Plant Stress Level',
-                      style: TextStyle(
-                        fontSize: isMobile ? 14 : 16,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      prediction.stressLabel,
-                      style: TextStyle(
-                        fontSize: isMobile ? 28 : 36,
-                        fontWeight: FontWeight.bold,
-                        color: stressColor,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: <Widget>[
-                    Text(
-                      '${(prediction.highestProbability * 100).toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: isMobile ? 24 : 28,
-                        fontWeight: FontWeight.bold,
-                        color: stressColor,
-                      ),
-                    ),
-                    Text(
-                      'Confidence',
-                      style: TextStyle(
-                        fontSize: isMobile ? 11 : 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.7),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Icon(Icons.lightbulb_outline, color: stressColor, size: 20),
-                const SizedBox(width: 12),
-                Expanded(
+                Icon(Icons.lightbulb_outline, color: stressColor, size: 16),
+                const SizedBox(width: 8),
+                Flexible(
                   child: Text(
                     recommendation,
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: isMobile ? 13 : 14,
+                      fontSize: isMobile ? 11 : 12,
                       color: Colors.grey.shade700,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1271,52 +1182,27 @@ class _ModernPredictionCard extends StatelessWidget {
               ],
             ),
           ),
-          if (prediction.stressProbabilities.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 16),
-            Text(
-              'Probability Breakdown',
-              style: TextStyle(
-                fontSize: isMobile ? 13 : 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
+          const SizedBox(height: 12),
+          // Moved time and date here
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(
+                Icons.schedule,
+                size: 12,
+                color: Colors.grey.shade500,
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: prediction.stressProbabilities.entries.map((entry) {
-                return Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      children: <Widget>[
-                        Text(
-                          '${(entry.value * 100).toStringAsFixed(0)}%',
-                          style: TextStyle(
-                            fontSize: isMobile ? 18 : 20,
-                            fontWeight: FontWeight.bold,
-                            color: stressColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          entry.key,
-                          style: TextStyle(
-                            fontSize: isMobile ? 11 : 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Text(
+                'Updated: $formatted',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
