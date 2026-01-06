@@ -225,7 +225,8 @@ class FreshnessApiService {
     final sampleReading = ReadingModel(
       deviceId: deviceId,
       timestamp: DateTime.now().toUtc(),
-      temperature: 20.5,
+      airTemperature: 20.5,
+      waterTemperature: 18.0,
       humidity: 65.0,
       gasValue: 45.0,
       waterLevel: 75,

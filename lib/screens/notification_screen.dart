@@ -162,14 +162,14 @@ class _NotificationScreenState extends State<NotificationScreen> {
           );
         }
 
-        // Temperature alerts from freshness readings
-        if (freshnessReading.temperature < 15 ||
-            freshnessReading.temperature > 25) {
+        // Air temperature alerts from freshness readings
+        if (freshnessReading.airTemperature < 15 ||
+            freshnessReading.airTemperature > 25) {
           notifications.add(
             _NotificationItem(
               type: NotificationType.critical,
-              title: 'Temperature Alert',
-              description: 'Storage temperature outside optimal range',
+              title: 'Air Temperature Alert',
+              description: 'Storage air temperature outside optimal range',
               timestamp: freshnessReading.timestamp,
               component: 'Freshness',
               icon: Icons.thermostat,
