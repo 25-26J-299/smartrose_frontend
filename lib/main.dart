@@ -51,7 +51,7 @@ Future<void> main() async {
     // Show a basic error screen if initialization fails
     runApp(
       MaterialApp(
-        title: 'SmartRose',
+        title: 'Smart Rose',
         home: Scaffold(
           body: Center(
             child: Column(
@@ -100,7 +100,7 @@ class SmartRoseApp extends StatelessWidget {
           // Show loading screen while initializing
           if (authState.isInitializing) {
             return MaterialApp(
-              title: 'SmartRose',
+              title: 'Smart Rose',
               theme: AppTheme.light,
               debugShowCheckedModeBanner: false,
               home: Scaffold(
@@ -109,10 +109,10 @@ class SmartRoseApp extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: <Widget>[
-                      Icon(
-                        Icons.local_florist,
-                        size: 64,
-                        color: AppTheme.deepForestGreen,
+                      Image.asset(
+                        'assets/logo.png',
+                        width: 120,
+                        height: 120,
                       ),
                       const SizedBox(height: 24),
                       const CircularProgressIndicator(),
@@ -132,7 +132,7 @@ class SmartRoseApp extends StatelessWidget {
           }
 
           return MaterialApp(
-            title: 'SmartRose',
+            title: 'Smart Rose',
             theme: AppTheme.light,
             debugShowCheckedModeBanner: false,
             initialRoute: AppRoutes.login,
