@@ -111,8 +111,8 @@ class SmartRoseApp extends StatelessWidget {
                     children: <Widget>[
                       Image.asset(
                         'assets/logo.png',
-                        width: 120,
-                        height: 120,
+                        width: 300,
+                        height:300,
                       ),
                       const SizedBox(height: 24),
                       const CircularProgressIndicator(),
