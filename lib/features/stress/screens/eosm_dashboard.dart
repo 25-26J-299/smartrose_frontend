@@ -109,18 +109,18 @@ class _DashboardView extends StatelessWidget {
                         onRetry: () => provider.refresh(force: true),
                       ),
                                 _buildSectionHeader(context, 'Trends', isMobile),
-                                SizedBox(height: isMobile ? 8 : 12),
-                                if (history.length >= 2)
-                                  _TrendGrid(readings: history, isMobile: isMobile)
-                                else
-                                  _EmptyState(
-                                    message: 'Not enough history yet. Ingest more readings.',
-                                    onRetry: () => provider.refresh(force: true),
-                                  ),
+                    SizedBox(height: isMobile ? 8 : 12),
+                    if (history.length >= 2)
+                      _TrendGrid(readings: history, isMobile: isMobile)
+                    else
+                      _EmptyState(
+                        message: 'Not enough history yet. Ingest more readings.',
+                        onRetry: () => provider.refresh(force: true),
+                      ),
                                 SizedBox(height: isMobile ? 24 : 32),
                                 _buildSectionHeader(
                                   context, 
-                                  'History', 
+                                'History',
                                   isMobile,
                                   trailing: GestureDetector(
                                     onTap: () => _showHistoryDialog(context, provider),
@@ -143,9 +143,9 @@ class _DashboardView extends StatelessWidget {
                                               color: const Color(0xFF1B5E20),
                                               fontWeight: FontWeight.w800,
                                               fontSize: 11,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                                           const SizedBox(width: 2),
                                           const Icon(
                                             Icons.chevron_right_rounded,
@@ -233,55 +233,65 @@ class _DashboardView extends StatelessWidget {
                     children: [
                       // Date & Time
                       SizedBox(
-                        width: 85,
+                        width: isMobile ? 75 : 85,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
+                              Text(
                               dateStr,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.grey.shade400,
-                                letterSpacing: 0.5,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
-                            ),
                             Text(
                               timeStr,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: isMobile ? 11 : 12,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.grey.shade600,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
                       ),
                       const SizedBox(width: 8),
                       // Data Row
                       Expanded(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildMiniMetric(Icons.thermostat, '${reading.temperature.toStringAsFixed(1)}°', const Color(0xFFFFCC80)),
-                            _buildMiniMetric(Icons.water_drop, '${reading.humidity.toStringAsFixed(0)}%', const Color(0xFF90CAF9)),
-                            if (reading.soilVoltage != null)
-                              _buildMiniMetric(Icons.grass, '${reading.soilVoltage!.toStringAsFixed(1)}V', const Color(0xFFBCAAA4)),
-                            if (reading.uvVoltage != null)
-                              _buildMiniMetric(Icons.wb_sunny, '${reading.uvVoltage!.toStringAsFixed(1)}V', const Color(0xFFFFE082)),
-                            if (reading.mqVoltage != null)
-                              _buildMiniMetric(Icons.air, '${reading.mqVoltage!.toStringAsFixed(1)}V', const Color(0xFFF48FB1)),
-                          ],
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: [
+                              _buildMiniMetric(Icons.thermostat, '${reading.temperature.toStringAsFixed(1)}°', const Color(0xFFFFCC80)),
+                              const SizedBox(width: 12),
+                              _buildMiniMetric(Icons.water_drop, '${reading.humidity.toStringAsFixed(0)}%', const Color(0xFF90CAF9)),
+                              const SizedBox(width: 12),
+                              if (reading.soilVoltage != null) ...[
+                                _buildMiniMetric(Icons.grass, '${reading.soilVoltage!.toStringAsFixed(1)}V', const Color(0xFFBCAAA4)),
+                                const SizedBox(width: 12),
+                              ],
+                              if (reading.uvVoltage != null) ...[
+                                _buildMiniMetric(Icons.wb_sunny, '${reading.uvVoltage!.toStringAsFixed(1)}V', const Color(0xFFFFE082)),
+                                const SizedBox(width: 12),
+                              ],
+                              if (reading.mqVoltage != null)
+                                _buildMiniMetric(Icons.air, '${reading.mqVoltage!.toStringAsFixed(1)}V', const Color(0xFFF48FB1)),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Status Dot (Simplified for now as readings don't have direct stress labels)
+                      // Status Dot
                       Container(
                         width: 8,
                         height: 8,
                         decoration: const BoxDecoration(
-                          color: Color(0xFFA5D6A7), // Default to green/normal
+                          color: Color(0xFFA5D6A7),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -305,15 +315,25 @@ class _DashboardView extends StatelessWidget {
                       ),
                     ),
                   ],
-                );
-              }
-            }
+    );
+  }
+}
 
 void _showHistoryDialog(BuildContext context, SensorProvider provider) {
+  final bool isMobile = MediaQuery.of(context).size.width < 600;
+  
+  if (isMobile) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => _HistoryDialogContent(provider: provider),
+      ),
+    );
+  } else {
   showDialog<void>(
     context: context,
     builder: (BuildContext context) => _HistoryDialogContent(provider: provider),
   );
+  }
 }
 
 class _HistoryDialogContent extends StatefulWidget {
@@ -399,24 +419,152 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     final theme = Theme.of(context);
     
-    return Dialog(
-      backgroundColor: const Color(0xFFF5F5F5),
-      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isMobile ? 0 : 28)),
-      child: Container(
-        width: isMobile ? double.infinity : 800,
-        height: isMobile ? double.infinity : MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Column(
+    // Main Content of the History (extracted to reuse)
+    Widget buildContent() {
+      return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-            // Header
+          // Filters Bar
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
+            child: Container(
+              padding: EdgeInsets.all(isMobile ? 12 : 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Greenhouse Selector
+                  _buildGreenhouseFilterBar(
+                    options: ghOptions,
+                    selected: selectedGh,
+                    onSelect: (val) {
+                      setState(() => selectedGh = val ?? 'ALL');
+                      loadHistory();
+                    },
+                    isMobile: isMobile,
+                  ),
+                  const SizedBox(height: 16),
+                  // Date Selectors
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildDatePicker(
+                          label: 'From',
+                          date: startDate,
+                            onTap: () async {
+                            final picked = await showDatePicker(
+                                context: context,
+                                initialDate: startDate,
+                                firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                              setState(() => startDate = picked);
+                              loadHistory();
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildDatePicker(
+                          label: 'To',
+                          date: endDate.subtract(const Duration(days: 1)),
+                            onTap: () async {
+                            final picked = await showDatePicker(
+                                context: context,
+                                initialDate: endDate.subtract(const Duration(days: 1)),
+                                firstDate: startDate,
+                              lastDate: DateTime.now(),
+                              );
+                              if (picked != null) {
+                              setState(() => endDate = picked.add(const Duration(days: 1)));
+                              loadHistory();
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          
+          // Results List
+          Expanded(
+            child: isLoadingHistory && !_initialLoadDone
+                ? const Center(child: CircularProgressIndicator())
+                : allRows.isEmpty
+                    ? _buildEmptyState('No records found for this period.')
+                    : ListView.separated(
+                        controller: verticalController,
+                        padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 8),
+                        itemCount: displayedRows.length + (displayedRows.length < allRows.length ? 1 : 0),
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          if (index == displayedRows.length) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: OutlinedButton(
+                                onPressed: _loadMore,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  side: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                ),
+                                child: Text('Load More (${allRows.length - displayedRows.length} left)'),
+                              ),
+                            );
+                          }
+                          return _DetailedHistoryCard(reading: displayedRows[index], isMobile: isMobile);
+                        },
+                                ),
+                              ),
+                            ],
+      );
+    }
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: GradientHeader.buildAppBar(
+                                      context: context,
+          title: 'Full Activity Log',
+          onBackPressed: () => Navigator.of(context).pop(),
+        ),
+        body: buildContent(),
+      );
+    }
+
+    return Dialog(
+      backgroundColor: const Color(0xFFF5F5F5),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: Container(
+        width: 800,
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            // Header (Desktop only as AppBar handles it on Mobile)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                          const Text(
+                  const Text(
                     'Full Activity Log',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black),
                   ),
@@ -426,120 +574,13 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.grey.shade200,
                       padding: const EdgeInsets.all(8),
-                              ),
+                    ),
                   ),
                 ],
-                            ),
-                          ),
-            const SizedBox(height: 20),
-            
-            // Filters Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                              ),
-                  ],
-                          ),
-                child: Column(
-                  children: [
-                    // Greenhouse Selector
-                    _buildGreenhouseFilterBar(
-                      options: ghOptions,
-                      selected: selectedGh,
-                      onSelect: (val) {
-                        setState(() => selectedGh = val ?? 'ALL');
-                        loadHistory();
-                                  },
-                      isMobile: isMobile,
-                          ),
-                    const SizedBox(height: 16),
-                    // Date Selectors
-                          Row(
-                      children: [
-                              Expanded(
-                          child: _buildDatePicker(
-                            label: 'From',
-                            date: startDate,
-                                  onTap: () async {
-                              final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: startDate,
-                                      firstDate: DateTime(2020),
-                                lastDate: DateTime.now(),
-                                    );
-                                    if (picked != null) {
-                                setState(() => startDate = picked);
-                                loadHistory();
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                          child: _buildDatePicker(
-                            label: 'To',
-                            date: endDate.subtract(const Duration(days: 1)),
-                                  onTap: () async {
-                              final picked = await showDatePicker(
-                                      context: context,
-                                      initialDate: endDate.subtract(const Duration(days: 1)),
-                                      firstDate: startDate,
-                                lastDate: DateTime.now(),
-                                    );
-                                    if (picked != null) {
-                                setState(() => endDate = picked.add(const Duration(days: 1)));
-                                loadHistory();
-                                    }
-                                  },
-                          ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
               ),
             ),
             const SizedBox(height: 20),
-            
-            // Results List
-                Expanded(
-                    child: isLoadingHistory && !_initialLoadDone
-                        ? const Center(child: CircularProgressIndicator())
-                        : allRows.isEmpty
-                      ? _buildEmptyState('No records found for this period.')
-                      : ListView.separated(
-                          controller: verticalController,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                          itemCount: displayedRows.length + (displayedRows.length < allRows.length ? 1 : 0),
-                          separatorBuilder: (context, index) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            if (index == displayedRows.length) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                child: OutlinedButton(
-                                  onPressed: _loadMore,
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    side: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                  ),
-                                  child: Text('Load More (${allRows.length - displayedRows.length} left)'),
-                                ),
-                              );
-                            }
-                            return _DetailedHistoryCard(reading: displayedRows[index], isMobile: isMobile);
-                          },
-                        ),
-            ),
+            Expanded(child: buildContent()),
           ],
         ),
       ),
@@ -556,7 +597,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.grey.shade200),
         ),
-        child: Column(
+                                child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
@@ -565,22 +606,22 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
               children: [
                 Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey.shade700),
                 const SizedBox(width: 8),
-                Text(
+                                    Text(
                   DateFormat('MMM d, yyyy').format(date),
                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black87),
-                ),
-              ],
-            ),
-          ],
-        ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
       ),
     );
   }
 
   Widget _buildEmptyState(String message) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.history_toggle_off_rounded, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
@@ -602,7 +643,7 @@ class _DetailedHistoryCard extends StatelessWidget {
     final timeStr = DateFormat('h:mm:ss a').format(reading.displayTime);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobile ? 12 : 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -611,9 +652,9 @@ class _DetailedHistoryCard extends StatelessWidget {
             color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
-                                          ),
-        ],
-                                      ),
+                                    ),
+                                  ],
+                                ),
       child: Column(
         children: [
           Row(
@@ -622,10 +663,24 @@ class _DetailedHistoryCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(dateStr, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.black)),
-                  Text(timeStr, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                  Text(
+                    dateStr, 
+                    style: TextStyle(
+                      fontSize: isMobile ? 12 : 13, 
+                      fontWeight: FontWeight.w900, 
+                      color: Colors.black
+                    )
+                  ),
+                  Text(
+                    timeStr, 
+                    style: TextStyle(
+                      fontSize: isMobile ? 10 : 11, 
+                      color: Colors.grey.shade500, 
+                      fontWeight: FontWeight.w600
+                    )
+                  ),
                 ],
-                                    ),
+              ),
               if (reading.greenhouseId != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -633,33 +688,45 @@ class _DetailedHistoryCard extends StatelessWidget {
                     color: const Color(0xFFC8E6C9).withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                                      child: Text(
+                  child: Text(
                     reading.greenhouseId!,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                    style: TextStyle(
+                      fontSize: isMobile ? 9 : 11, 
+                      fontWeight: FontWeight.w800, 
+                      color: const Color(0xFF1B5E20)
                                       ),
                                     ),
-                                ],
-                              ),
+                                  ),
+            ],
+          ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Divider(height: 1),
           ),
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              _buildMetricItem(Icons.thermostat, '${reading.temperature.toStringAsFixed(1)}°C', 'Temp', const Color(0xFFFFCC80)),
-              _buildMetricItem(Icons.water_drop, '${reading.humidity.toStringAsFixed(0)}%', 'Hum', const Color(0xFF90CAF9)),
-              if (reading.soilVoltage != null)
-                _buildMetricItem(Icons.grass, '${reading.soilVoltage!.toStringAsFixed(2)}V', 'Soil', const Color(0xFFBCAAA4)),
-              if (reading.uvVoltage != null)
-                _buildMetricItem(Icons.wb_sunny, '${reading.uvVoltage!.toStringAsFixed(2)}V', 'UV', const Color(0xFFFFE082)),
-              if (reading.mqVoltage != null)
-                _buildMetricItem(Icons.air, '${reading.mqVoltage!.toStringAsFixed(2)}V', 'Gas', const Color(0xFFF48FB1)),
-            ],
-                ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: [
+                _buildMetricItem(Icons.thermostat, '${reading.temperature.toStringAsFixed(1)}°', 'Temp', const Color(0xFFFFCC80)),
+                const SizedBox(width: 16),
+                _buildMetricItem(Icons.water_drop, '${reading.humidity.toStringAsFixed(0)}%', 'Hum', const Color(0xFF90CAF9)),
+                const SizedBox(width: 16),
+                if (reading.soilVoltage != null) ...[
+                  _buildMetricItem(Icons.grass, '${reading.soilVoltage!.toStringAsFixed(1)}V', 'Soil', const Color(0xFFBCAAA4)),
+                  const SizedBox(width: 16),
+                ],
+                if (reading.uvVoltage != null) ...[
+                  _buildMetricItem(Icons.wb_sunny, '${reading.uvVoltage!.toStringAsFixed(1)}V', 'UV', const Color(0xFFFFE082)),
+                  const SizedBox(width: 16),
+                ],
+                if (reading.mqVoltage != null)
+                  _buildMetricItem(Icons.air, '${reading.mqVoltage!.toStringAsFixed(1)}V', 'Gas', const Color(0xFFF48FB1)),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -676,8 +743,23 @@ class _DetailedHistoryCard extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black87)),
-            Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+            Text(
+              value, 
+              style: const TextStyle(
+                fontSize: 13, 
+                fontWeight: FontWeight.bold, 
+                color: Colors.black87
+              )
+            ),
+            Text(
+              label, 
+              style: TextStyle(
+                fontSize: 8, 
+                color: Colors.grey.shade500, 
+                fontWeight: FontWeight.bold, 
+                letterSpacing: 0.5
+              )
+            ),
           ],
         ),
       ],
@@ -708,12 +790,12 @@ Widget _buildSectionHeader(BuildContext context, String title, bool isMobile, {W
               color: Colors.black,
               letterSpacing: -0.5,
             ),
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
       if (trailing != null) trailing,
     ],
-  );
+    );
 }
 
 String _formatDateTime(DateTime dt, {bool isMobile = false}) {
@@ -740,10 +822,12 @@ Widget _buildGreenhouseFilterBar({
   required bool isMobile,
 }) {
   return SizedBox(
-    height: 40,
+    height: 44, // Slightly taller for better touch targets
     child: ListView.separated(
       scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 4), // Small internal padding
       itemCount: options.length,
+      physics: const BouncingScrollPhysics(),
       separatorBuilder: (context, index) => const SizedBox(width: 8),
       itemBuilder: (context, index) {
         final String id = options[index];
@@ -1124,61 +1208,59 @@ class _ModernPredictionCard extends StatelessWidget {
           const SizedBox(height: 12),
           
           // Middle Row: Status & Confidence
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-          Row(
-                children: [
-                  Icon(
-                    Icons.psychology_outlined,
-                    color: stressColor,
-                    size: isMobile ? 42 : 48,
-                    ),
-                  const SizedBox(width: 12),
-                    Text(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+              Expanded(
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.psychology_outlined,
+                                  color: stressColor,
+                                  size: isMobile ? (MediaQuery.of(context).size.width < 340 ? 32 : 42) : 48,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
                       prediction.stressLabel,
                       style: TextStyle(
-                      fontSize: isMobile ? 34 : 40,
-                      fontWeight: FontWeight.w900,
+                                      fontSize: isMobile ? (MediaQuery.of(context).size.width < 340 ? 28 : 34) : 40,
+                                      fontWeight: FontWeight.w900,
                         color: stressColor,
-                      letterSpacing: -1.0,
-                      ),
-                    ),
-                  ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                decoration: BoxDecoration(
-                  color: stressColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: stressColor.withOpacity(0.2), width: 1.5),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${(prediction.highestProbability * 100).toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        color: stressColor,
-                        height: 1.0,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'CONFIDENCE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        color: stressColor.withOpacity(0.8),
-                        letterSpacing: 0.8,
+                                      letterSpacing: -1.0,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
+                          const SizedBox(width: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                '${(prediction.highestProbability * 100).toStringAsFixed(0)}%',
+                                style: TextStyle(
+                                  fontSize: isMobile ? 20 : 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: stressColor,
+                                  height: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'CONFIDENCE',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: stressColor.withOpacity(0.8),
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1279,7 +1361,8 @@ class _MetricsGrid extends StatelessWidget {
         // Automatically adjust columns to fill space
         int columns;
         if (isMobile) {
-          columns = 2;
+          // Extremely small devices (like small emulators) use 1 column
+          columns = constraints.maxWidth < 340 ? 1 : 2;
         } else {
           // On desktop, try to fit all in one row, but max 4
           columns = metrics.length > 4 ? 4 : metrics.length;
@@ -1388,7 +1471,7 @@ class _ModernMetricCard extends StatelessWidget {
           Text(
             metric.value,
             style: TextStyle(
-                    fontSize: isMobile ? 18 : 22,
+                    fontSize: isMobile ? (MediaQuery.of(context).size.width < 340 ? 16 : 18) : 22,
               fontWeight: FontWeight.bold,
               color: metric.color,
                     letterSpacing: 0.2,
