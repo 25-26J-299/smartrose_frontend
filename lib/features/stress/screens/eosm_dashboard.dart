@@ -50,8 +50,6 @@ class _DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
     return Consumer<SensorProvider>(
       builder: (BuildContext context, SensorProvider provider, Widget? _) {
         final SensorReading? latest = provider.latestForSelected;
@@ -73,21 +71,21 @@ class _DashboardView extends StatelessWidget {
                         context: context,
                         title: 'Stress Monitoring',
                         onBackPressed: () => Navigator.of(context).pop(),
-                      ),
-                      body: RefreshIndicator(
-                        onRefresh: () => provider.refresh(force: true),
-                        child: LayoutBuilder(
-                          builder: (BuildContext context, BoxConstraints constraints) {
-                            final bool isMobile = constraints.maxWidth < 600;
-                            final double padding = isMobile ? 16.0 : 24.0;
-                            return ListView(
+          ),
+          body: RefreshIndicator(
+            onRefresh: () => provider.refresh(force: true),
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final bool isMobile = constraints.maxWidth < 600;
+                final double padding = isMobile ? 16.0 : 24.0;
+                return ListView(
                               padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
-                              children: <Widget>[
+                  children: <Widget>[
                                 _buildGreenhouseFilterBar(
                                   options: greenhouseOptions,
                                   selected: selectedGh,
-                                  onSelect: provider.setSelectedGreenhouse,
-                                  isMobile: isMobile,
+                      onSelect: provider.setSelectedGreenhouse,
+                      isMobile: isMobile,
                                 ),
                                 const SizedBox(height: 16),
                                 if (prediction != null) ...[
@@ -95,8 +93,8 @@ class _DashboardView extends StatelessWidget {
                         prediction: prediction,
                         isMobile: isMobile,
                         lastUpdated: latest?.displayTime,
-                      ),
-                      SizedBox(height: isMobile ? 16 : 24),
+                    ),
+                    SizedBox(height: isMobile ? 16 : 24),
                     ],
                     if (provider.errorMessage != null && latest == null)
                       _ErrorBanner(message: provider.errorMessage!),
@@ -110,67 +108,60 @@ class _DashboardView extends StatelessWidget {
                         message: 'No readings for this selection.',
                         onRetry: () => provider.refresh(force: true),
                       ),
-                                Text(
-                                  'Trends',
-                                  style: (isMobile ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 0.5,
-                                    color: Colors.black,
+                                _buildSectionHeader(context, 'Trends', isMobile),
+                                SizedBox(height: isMobile ? 8 : 12),
+                                if (history.length >= 2)
+                                  _TrendGrid(readings: history, isMobile: isMobile)
+                                else
+                                  _EmptyState(
+                                    message: 'Not enough history yet. Ingest more readings.',
+                                    onRetry: () => provider.refresh(force: true),
+                                  ),
+                                SizedBox(height: isMobile ? 24 : 32),
+                                _buildSectionHeader(
+                                  context, 
+                                  'History', 
+                                  isMobile,
+                                  trailing: GestureDetector(
+                                    onTap: () => _showHistoryDialog(context, provider),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: const Color(0xFF4CAF50).withOpacity(0.2),
+                                          width: 1,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            'See All',
+                                            style: TextStyle(
+                                              color: const Color(0xFF1B5E20),
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 11,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          const Icon(
+                                            Icons.chevron_right_rounded,
+                                            size: 14,
+                                            color: Color(0xFF1B5E20),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
-                    SizedBox(height: isMobile ? 8 : 12),
-                    if (history.length >= 2)
-                      _TrendGrid(readings: history, isMobile: isMobile)
-                    else
-                      _EmptyState(
-                        message: 'Not enough history yet. Ingest more readings.',
-                        onRetry: () => provider.refresh(force: true),
-                      ),
-                    SizedBox(height: isMobile ? 12 : 16),
-                    isMobile
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                                          Text(
-                                            'History',
-                                            style: textTheme.titleMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                              const SizedBox(height: 8),
-                              FilledButton.icon(
-                                onPressed: () => _showHistoryDialog(context, provider),
-                                icon: const Icon(Icons.list_alt, size: 18),
-                                label: const Text('View full history'),
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                const SizedBox(height: 12),
+                                _RecentActivityLog(
+                                  readings: history.take(5).toList(),
+                                  isMobile: isMobile,
                                 ),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                                          Text(
-                                            'History',
-                                            style: textTheme.titleLarge?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                              FilledButton.icon(
-                                onPressed: () => _showHistoryDialog(context, provider),
-                                icon: const Icon(Icons.list_alt, size: 18),
-                                label: const Text('View full history'),
-                                style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                ),
-                              ),
-                            ],
-                          ),
                   ],
                 );
               },
@@ -181,6 +172,142 @@ class _DashboardView extends StatelessWidget {
     );
   }
 }
+
+            class _RecentActivityLog extends StatelessWidget {
+              const _RecentActivityLog({required this.readings, required this.isMobile});
+
+              final List<SensorReading> readings;
+              final bool isMobile;
+
+              @override
+              Widget build(BuildContext context) {
+                if (readings.isEmpty) return const SizedBox.shrink();
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.06),
+                        blurRadius: 20,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: readings.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: Colors.grey.shade100,
+                    ),
+                    itemBuilder: (context, index) {
+                      final reading = readings[index];
+                      return _ActivityLogItem(reading: reading, isMobile: isMobile);
+                    },
+                  ),
+                );
+              }
+            }
+
+            class _ActivityLogItem extends StatelessWidget {
+              const _ActivityLogItem({required this.reading, required this.isMobile});
+
+              final SensorReading reading;
+              final bool isMobile;
+
+              @override
+              Widget build(BuildContext context) {
+                final timeStr = DateFormat('HH:mm:ss').format(reading.displayTime);
+                final dateStr = DateFormat('MMM d').format(reading.displayTime);
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      // Date & Time
+                      SizedBox(
+                        width: 85,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              dateStr,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.grey.shade400,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            Text(
+                              timeStr,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Data Row
+                      Expanded(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _buildMiniMetric(Icons.thermostat, '${reading.temperature.toStringAsFixed(1)}°', const Color(0xFFFFCC80)),
+                            _buildMiniMetric(Icons.water_drop, '${reading.humidity.toStringAsFixed(0)}%', const Color(0xFF90CAF9)),
+                            if (reading.soilVoltage != null)
+                              _buildMiniMetric(Icons.grass, '${reading.soilVoltage!.toStringAsFixed(1)}V', const Color(0xFFBCAAA4)),
+                            if (reading.uvVoltage != null)
+                              _buildMiniMetric(Icons.wb_sunny, '${reading.uvVoltage!.toStringAsFixed(1)}V', const Color(0xFFFFE082)),
+                            if (reading.mqVoltage != null)
+                              _buildMiniMetric(Icons.air, '${reading.mqVoltage!.toStringAsFixed(1)}V', const Color(0xFFF48FB1)),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Status Dot (Simplified for now as readings don't have direct stress labels)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFA5D6A7), // Default to green/normal
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              Widget _buildMiniMetric(IconData icon, String value, Color color) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 14, color: color),
+                    const SizedBox(width: 4),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                );
+              }
+            }
 
 void _showHistoryDialog(BuildContext context, SensorProvider provider) {
   showDialog<void>(
@@ -198,20 +325,8 @@ class _HistoryDialogContent extends StatefulWidget {
   State<_HistoryDialogContent> createState() => _HistoryDialogContentState();
 }
 
-enum _SortColumn {
-  time,
-  greenhouse,
-  basestation,
-  temperature,
-  humidity,
-  soilVoltage,
-  uvVoltage,
-  gasVoltage,
-}
-
 class _HistoryDialogContentState extends State<_HistoryDialogContent> {
   late final ScrollController verticalController;
-  late final ScrollController horizontalController;
   
   // Initialize with current date
   late DateTime startDate;
@@ -224,15 +339,10 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
   int _displayedCount = 20; // Initial display count
   static const int _pageSize = 20;
   
-  // Sorting state
-  _SortColumn? _sortColumn;
-  bool _sortAscending = true;
-  
   @override
   void initState() {
     super.initState();
     verticalController = ScrollController();
-    horizontalController = ScrollController();
     // Use local date for today (user's timezone)
     final DateTime now = DateTime.now();
     final DateTime todayStart = DateTime(now.year, now.month, now.day);
@@ -247,7 +357,6 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
   @override
   void dispose() {
     verticalController.dispose();
-    horizontalController.dispose();
     super.dispose();
   }
   
@@ -259,7 +368,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
       startDate: startDate,
       endDate: endDate,
       greenhouseId: selectedGh == 'ALL' ? null : selectedGh,
-      limit: 2000, // Fetch all matching records for sorting/pagination (backend max limit)
+      limit: 2000,
     );
     if (mounted) {
       setState(() {
@@ -267,97 +376,18 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
         if (resetPagination) {
           _displayedCount = _pageSize;
         }
-        _applySortAndPagination();
+        displayedRows = allRows.take(_displayedCount).toList();
         isLoadingHistory = false;
         _initialLoadDone = true;
       });
     }
   }
   
-  void _applySortAndPagination() {
-    List<SensorReading> sorted = List<SensorReading>.from(allRows);
-    
-    // Apply sorting
-    if (_sortColumn != null) {
-      sorted.sort((a, b) {
-        int comparison = 0;
-        switch (_sortColumn!) {
-          case _SortColumn.time:
-            comparison = a.displayTime.compareTo(b.displayTime);
-            break;
-          case _SortColumn.greenhouse:
-            comparison = (a.greenhouseId ?? '').compareTo(b.greenhouseId ?? '');
-            break;
-          case _SortColumn.basestation:
-            comparison = a.basestationId.compareTo(b.basestationId);
-            break;
-          case _SortColumn.temperature:
-            comparison = a.temperature.compareTo(b.temperature);
-            break;
-          case _SortColumn.humidity:
-            comparison = a.humidity.compareTo(b.humidity);
-            break;
-          case _SortColumn.soilVoltage:
-            final double aVal = a.soilVoltage ?? 0;
-            final double bVal = b.soilVoltage ?? 0;
-            comparison = aVal.compareTo(bVal);
-            break;
-          case _SortColumn.uvVoltage:
-            final double aVal = a.uvVoltage ?? 0;
-            final double bVal = b.uvVoltage ?? 0;
-            comparison = aVal.compareTo(bVal);
-            break;
-          case _SortColumn.gasVoltage:
-            final double aVal = a.mqVoltage ?? 0;
-            final double bVal = b.mqVoltage ?? 0;
-            comparison = aVal.compareTo(bVal);
-            break;
-        }
-        return _sortAscending ? comparison : -comparison;
-      });
-    }
-    
-    // Apply pagination
-    displayedRows = sorted.take(_displayedCount).toList();
-  }
-  
-  void _onSort(_SortColumn column) {
-    setState(() {
-      if (_sortColumn == column) {
-        _sortAscending = !_sortAscending;
-      } else {
-        _sortColumn = column;
-        _sortAscending = true;
-      }
-      _applySortAndPagination();
-    });
-  }
-  
   void _loadMore() {
     setState(() {
       _displayedCount += _pageSize;
-      _applySortAndPagination();
+      displayedRows = allRows.take(_displayedCount).toList();
     });
-  }
-  
-  DataColumn _buildSortableColumn(String label, _SortColumn column) {
-    final bool isSorted = _sortColumn == column;
-    return DataColumn(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(label),
-          if (isSorted)
-            Icon(
-              _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-              size: 16,
-            )
-          else
-            const Icon(Icons.unfold_more, size: 16, color: Colors.grey),
-        ],
-      ),
-      onSort: (int columnIndex, bool ascending) => _onSort(column),
-    );
   }
   
   @override
@@ -367,359 +397,323 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
       ...widget.provider.availableGreenhouseIds,
     ];
     final bool isMobile = MediaQuery.of(context).size.width < 600;
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: isMobile ? double.infinity : 1100),
-        child: AlertDialog(
-          contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
-          insetPadding: isMobile
-              ? EdgeInsets.zero
-              : const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(isMobile ? 0 : 12),
-          ),
-          content: SizedBox(
-            width: isMobile ? MediaQuery.of(context).size.width : MediaQuery.of(context).size.width * 0.9,
-            height: isMobile ? MediaQuery.of(context).size.height * 0.9 : MediaQuery.of(context).size.height * 0.7,
+    final theme = Theme.of(context);
+    
+    return Dialog(
+      backgroundColor: const Color(0xFFF5F5F5),
+      insetPadding: isMobile ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isMobile ? 0 : 28)),
+      child: Container(
+        width: isMobile ? double.infinity : 800,
+        height: isMobile ? double.infinity : MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.symmetric(vertical: 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                isMobile
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: <Widget>[
+            // Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                           const Text(
-                            'Full History',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            value: ghOptions.contains(selectedGh) ? selectedGh : 'ALL',
-                            items: ghOptions
-                                .map(
-                                  (String gh) => DropdownMenuItem<String>(
-                                    value: gh,
-                                    child: Text(gh == 'ALL' ? 'All Greenhouses' : gh),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (String? value) {
-                              setState(() {
-                                selectedGh = value ?? 'ALL';
-                              });
-                              loadHistory(resetPagination: true);
-                            },
-                            decoration: const InputDecoration(
-                              labelText: 'Greenhouse',
-                              border: OutlineInputBorder(),
-                              isDense: true,
+                    'Full Activity Log',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, color: Colors.black87),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.grey.shade200,
+                      padding: const EdgeInsets.all(8),
+                              ),
+                  ),
+                ],
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          InkWell(
-                            onTap: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: startDate,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime.now().add(const Duration(days: 1)),
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  startDate = DateTime(picked.year, picked.month, picked.day);
-                                });
-                                loadHistory(resetPagination: true);
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: const InputDecoration(
-                                labelText: 'Start Date',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                                suffixIcon: Icon(Icons.calendar_today),
+            const SizedBox(height: 20),
+            
+            // Filters Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                               ),
-                              child: Text(
-                                DateFormat('MMM d, yyyy').format(startDate),
-                              ),
-                            ),
+                  ],
                           ),
-                          const SizedBox(height: 12),
-                          InkWell(
-                            onTap: () async {
-                              final DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: endDate.subtract(const Duration(days: 1)),
-                                firstDate: startDate,
-                                lastDate: DateTime.now().add(const Duration(days: 1)),
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  endDate = DateTime(picked.year, picked.month, picked.day)
-                                      .add(const Duration(days: 1));
-                                });
-                                loadHistory(resetPagination: true);
-                              }
-                            },
-                            child: InputDecorator(
-                              decoration: const InputDecoration(
-                                labelText: 'End Date',
-                                border: OutlineInputBorder(),
-                                isDense: true,
-                                suffixIcon: Icon(Icons.calendar_today),
-                              ),
-                              child: Text(
-                                DateFormat('MMM d, yyyy').format(endDate.subtract(const Duration(days: 1))),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: isLoadingHistory ? null : () => loadHistory(resetPagination: true),
-                              icon: isLoadingHistory
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.search),
-                              label: const Text('Load'),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                              ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: <Widget>[
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: <Widget>[
-                              const Text(
-                                'Full History',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              SizedBox(
-                                width: 240,
-                                child: DropdownButtonFormField<String>(
-                                  value: ghOptions.contains(selectedGh) ? selectedGh : 'ALL',
-                                  items: ghOptions
-                                      .map(
-                                        (String gh) => DropdownMenuItem<String>(
-                                          value: gh,
-                                          child: Text(gh == 'ALL' ? 'All Greenhouses' : gh),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (String? value) {
-                                    setState(() {
-                                      selectedGh = value ?? 'ALL';
-                                    });
-                                    loadHistory(resetPagination: true);
+                child: Column(
+                  children: [
+                    // Greenhouse Selector
+                    _buildGreenhouseFilterBar(
+                      options: ghOptions,
+                      selected: selectedGh,
+                      onSelect: (val) {
+                        setState(() => selectedGh = val ?? 'ALL');
+                        loadHistory();
                                   },
-                                  decoration: const InputDecoration(
-                                    labelText: 'Greenhouse',
-                                    border: OutlineInputBorder(),
-                                    isDense: true,
-                                  ),
-                                ),
-                              ),
-                            ],
+                      isMobile: isMobile,
                           ),
-                          const SizedBox(height: 12),
+                    const SizedBox(height: 16),
+                    // Date Selectors
                           Row(
-                            children: <Widget>[
+                      children: [
                               Expanded(
-                                child: InkWell(
+                          child: _buildDatePicker(
+                            label: 'From',
+                            date: startDate,
                                   onTap: () async {
-                                    final DateTime? picked = await showDatePicker(
+                              final picked = await showDatePicker(
                                       context: context,
                                       initialDate: startDate,
                                       firstDate: DateTime(2020),
-                                      lastDate: DateTime.now().add(const Duration(days: 1)),
+                                lastDate: DateTime.now(),
                                     );
                                     if (picked != null) {
-                                      setState(() {
-                                        startDate = DateTime(picked.year, picked.month, picked.day);
-                                      });
-                                      loadHistory(resetPagination: true);
+                                setState(() => startDate = picked);
+                                loadHistory();
                                     }
                                   },
-                                  child: InputDecorator(
-                                    decoration: const InputDecoration(
-                                      labelText: 'Start Date',
-                                      border: OutlineInputBorder(),
-                                      isDense: true,
-                                      suffixIcon: Icon(Icons.calendar_today),
-                                    ),
-                                    child: Text(
-                                      DateFormat('MMM d, yyyy').format(startDate),
-                                    ),
-                                  ),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: InkWell(
+                          child: _buildDatePicker(
+                            label: 'To',
+                            date: endDate.subtract(const Duration(days: 1)),
                                   onTap: () async {
-                                    final DateTime? picked = await showDatePicker(
+                              final picked = await showDatePicker(
                                       context: context,
                                       initialDate: endDate.subtract(const Duration(days: 1)),
                                       firstDate: startDate,
-                                      lastDate: DateTime.now().add(const Duration(days: 1)),
+                                lastDate: DateTime.now(),
                                     );
                                     if (picked != null) {
-                                      setState(() {
-                                        endDate = DateTime(picked.year, picked.month, picked.day)
-                                            .add(const Duration(days: 1));
-                                      });
-                                      loadHistory(resetPagination: true);
+                                setState(() => endDate = picked.add(const Duration(days: 1)));
+                                loadHistory();
                                     }
                                   },
-                                  child: InputDecorator(
-                                    decoration: const InputDecoration(
-                                      labelText: 'End Date',
-                                      border: OutlineInputBorder(),
-                                      isDense: true,
-                                      suffixIcon: Icon(Icons.calendar_today),
-                                    ),
-                                    child: Text(
-                                      DateFormat('MMM d, yyyy').format(endDate.subtract(const Duration(days: 1))),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              ElevatedButton.icon(
-                                onPressed: isLoadingHistory ? null : () => loadHistory(resetPagination: true),
-                                icon: isLoadingHistory
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.search),
-                                label: const Text('Load'),
+                          ),
                               ),
                             ],
                           ),
                         ],
                       ),
-                SizedBox(height: isMobile ? 8 : 12),
-                const SizedBox(height: 12),
+              ),
+            ),
+            const SizedBox(height: 20),
+            
+            // Results List
                 Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
                     child: isLoadingHistory && !_initialLoadDone
                         ? const Center(child: CircularProgressIndicator())
                         : allRows.isEmpty
-                            ? Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: <Widget>[
-                                    Icon(Icons.inbox, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'No data found for selected date range',
-                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                          ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : Column(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: Scrollbar(
-                                      controller: verticalController,
-                                      thumbVisibility: true,
-                                      child: SingleChildScrollView(
-                                        controller: verticalController,
-                                        primary: false,
-                                        child: Scrollbar(
-                                          controller: horizontalController,
-                                          thumbVisibility: true,
-                                          notificationPredicate: (ScrollNotification notification) =>
-                                              notification.depth == 1,
-                                          child: SingleChildScrollView(
-                                            controller: horizontalController,
-                                            primary: false,
-                                            scrollDirection: Axis.horizontal,
-                                            child: DataTable(
-                                              columns: <DataColumn>[
-                                                _buildSortableColumn('Time', _SortColumn.time),
-                                                _buildSortableColumn('Greenhouse', _SortColumn.greenhouse),
-                                                _buildSortableColumn('Basestation', _SortColumn.basestation),
-                                                _buildSortableColumn('Temp °C', _SortColumn.temperature),
-                                                _buildSortableColumn('Hum %', _SortColumn.humidity),
-                                                _buildSortableColumn('Soil V', _SortColumn.soilVoltage),
-                                                _buildSortableColumn('UV V', _SortColumn.uvVoltage),
-                                                _buildSortableColumn('Gas V', _SortColumn.gasVoltage),
-                                              ],
-                                              rows: displayedRows
-                                                  .map(
-                                                    (SensorReading r) => DataRow(
-                                                      cells: <DataCell>[
-                                                        DataCell(Text(
-                                                            DateFormat('MMM d HH:mm:ss').format(r.displayTime))),
-                                                        DataCell(Text(r.greenhouseId ?? '—')),
-                                                        DataCell(Text(r.basestationId)),
-                                                        DataCell(Text(r.temperature.toStringAsFixed(1))),
-                                                        DataCell(Text(r.humidity.toStringAsFixed(1))),
-                                                        DataCell(Text(r.soilVoltage?.toStringAsFixed(2) ?? '—')),
-                                                        DataCell(Text(r.uvVoltage?.toStringAsFixed(2) ?? '—')),
-                                                        DataCell(Text(r.mqVoltage?.toStringAsFixed(2) ?? '—')),
-                                                      ],
-                                                    ),
-                                                  )
-                                                  .toList(),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                      ? _buildEmptyState('No records found for this period.')
+                      : ListView.separated(
+                          controller: verticalController,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          itemCount: displayedRows.length + (displayedRows.length < allRows.length ? 1 : 0),
+                          separatorBuilder: (context, index) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            if (index == displayedRows.length) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                child: OutlinedButton(
+                                  onPressed: _loadMore,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    side: BorderSide(color: theme.colorScheme.primary.withOpacity(0.3)),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                   ),
-                                  if (_displayedCount < allRows.length)
-                                    Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: OutlinedButton.icon(
-                                        onPressed: _loadMore,
-                                        icon: const Icon(Icons.expand_more),
-                                        label: Text(
-                                          'Load More (${allRows.length - _displayedCount} remaining)',
-                                        ),
-                                      ),
-                                    ),
-                                  if (_displayedCount >= allRows.length && allRows.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Text(
-                                        'Showing all ${allRows.length} records',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                            ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
+                                  child: Text('Load More (${allRows.length - displayedRows.length} left)'),
+                                ),
+                              );
+                            }
+                            return _DetailedHistoryCard(reading: displayedRows[index], isMobile: isMobile);
+                          },
+                        ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildDatePicker({required String label, required DateTime date, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Icon(Icons.calendar_today_rounded, size: 14, color: Colors.grey.shade700),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('MMM d, yyyy').format(date),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black87),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history_toggle_off_rounded, size: 64, color: Colors.grey.shade300),
+          const SizedBox(height: 16),
+          Text(message, style: TextStyle(color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailedHistoryCard extends StatelessWidget {
+  const _DetailedHistoryCard({required this.reading, required this.isMobile});
+  final SensorReading reading;
+  final bool isMobile;
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = DateFormat('MMM d, yyyy').format(reading.displayTime);
+    final timeStr = DateFormat('h:mm:ss a').format(reading.displayTime);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+                                          ),
+        ],
+                                      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(dateStr, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Colors.black)),
+                  Text(timeStr, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+                ],
+                                    ),
+              if (reading.greenhouseId != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC8E6C9).withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                                      child: Text(
+                    reading.greenhouseId!,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF1B5E20)),
+                                      ),
+                                    ),
+                                ],
+                              ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1),
+          ),
+          Wrap(
+            spacing: 16,
+            runSpacing: 12,
+            children: [
+              _buildMetricItem(Icons.thermostat, '${reading.temperature.toStringAsFixed(1)}°C', 'Temp', const Color(0xFFFFCC80)),
+              _buildMetricItem(Icons.water_drop, '${reading.humidity.toStringAsFixed(0)}%', 'Hum', const Color(0xFF90CAF9)),
+              if (reading.soilVoltage != null)
+                _buildMetricItem(Icons.grass, '${reading.soilVoltage!.toStringAsFixed(2)}V', 'Soil', const Color(0xFFBCAAA4)),
+              if (reading.uvVoltage != null)
+                _buildMetricItem(Icons.wb_sunny, '${reading.uvVoltage!.toStringAsFixed(2)}V', 'UV', const Color(0xFFFFE082)),
+              if (reading.mqVoltage != null)
+                _buildMetricItem(Icons.air, '${reading.mqVoltage!.toStringAsFixed(2)}V', 'Gas', const Color(0xFFF48FB1)),
+            ],
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildMetricItem(IconData icon, String value, String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          child: Icon(icon, size: 14, color: color),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.black87)),
+            Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+Widget _buildSectionHeader(BuildContext context, String title, bool isMobile, {Widget? trailing}) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Row(
+        children: [
+          Container(
+            width: 4,
+            height: isMobile ? 18 : 22,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1B5E20), // deepForestGreen
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: isMobile ? 18 : 22,
+              fontWeight: FontWeight.w900,
+              color: Colors.black,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+      if (trailing != null) trailing,
+    ],
+  );
 }
 
 String _formatDateTime(DateTime dt, {bool isMobile = false}) {
@@ -762,7 +756,7 @@ Widget _buildGreenhouseFilterBar({
               color: isSelected ? const Color(0xFF1B5E20) : Colors.grey.shade700,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
               fontSize: 13,
-            ),
+                  ),
           ),
           selected: isSelected,
           onSelected: (bool selected) {
@@ -780,7 +774,7 @@ Widget _buildGreenhouseFilterBar({
               width: 1.5,
             ),
           ),
-        );
+      );
       },
     ),
   );
@@ -902,7 +896,7 @@ class _TrendGridState extends State<_TrendGrid> {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
+          children: <Widget>[
         Container(
           height: 48,
           decoration: BoxDecoration(
@@ -920,15 +914,15 @@ class _TrendGridState extends State<_TrendGrid> {
               _buildMetricTab(_MetricType.gasVoltage, 'Gas', Icons.air, const Color(0xFFF48FB1)),
               _buildMetricTab(_MetricType.uvVoltage, 'UV', Icons.wb_sunny, const Color(0xFFFFE082)),
             ],
-          ),
-        ),
+              ),
+            ),
         const SizedBox(height: 16),
         TrendChart(
           title: title,
           unit: unit,
           color: color,
-          optimalMin: null,
-          optimalMax: null,
+                optimalMin: null,
+                optimalMax: null,
           points: points,
         ),
       ],
@@ -974,9 +968,9 @@ class _TrendGridState extends State<_TrendGrid> {
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                   color: isSelected ? Colors.black : Colors.grey.shade500,
                   letterSpacing: 0.2,
-                ),
               ),
-            ],
+            ),
+          ],
           ),
         ),
       ),
@@ -1085,7 +1079,7 @@ class _ModernPredictionCard extends StatelessWidget {
             blurRadius: 24,
             spreadRadius: 0,
             offset: const Offset(0, 8),
-          ),
+        ),
         ],
       ),
       child: Column(
@@ -1095,17 +1089,17 @@ class _ModernPredictionCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+                    Row(
                 children: [
-                  Container(
+              Container(
                     width: 6,
                     height: 6,
-                    decoration: BoxDecoration(
+                decoration: BoxDecoration(
                       color: stressColor,
-                      shape: BoxShape.circle,
+                  shape: BoxShape.circle,
                     ),
-                  ),
-                  const SizedBox(width: 8),
+            ),
+                const SizedBox(width: 8),
                   Text(
                     'ML STRESS ANALYSIS',
                     style: TextStyle(
@@ -1113,20 +1107,20 @@ class _ModernPredictionCard extends StatelessWidget {
                       fontWeight: FontWeight.w800,
                       color: Colors.grey.shade500,
                       letterSpacing: 1.0,
-                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
               Text(
                 formatted,
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey.shade500,
                   fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+            ),
           ),
+        ],
+      ),
           const SizedBox(height: 12),
           
           // Middle Row: Status & Confidence
@@ -1134,24 +1128,24 @@ class _ModernPredictionCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
+          Row(
                 children: [
                   Icon(
                     Icons.psychology_outlined,
                     color: stressColor,
                     size: isMobile ? 42 : 48,
-                  ),
+                    ),
                   const SizedBox(width: 12),
-                  Text(
-                    prediction.stressLabel,
-                    style: TextStyle(
+                    Text(
+                      prediction.stressLabel,
+                      style: TextStyle(
                       fontSize: isMobile ? 34 : 40,
                       fontWeight: FontWeight.w900,
-                      color: stressColor,
+                        color: stressColor,
                       letterSpacing: -1.0,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -1213,14 +1207,14 @@ class _ModernPredictionCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade800,
-                      fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w600,
                       height: 1.3,
                     ),
-                  ),
-                ),
-              ],
+                          ),
+                        ),
+                      ],
+                    ),
             ),
-          ),
         ],
       ),
     );
@@ -1248,37 +1242,37 @@ class _MetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<_MetricItem> metrics = <_MetricItem>[
-      _MetricItem(
-        title: 'Soil Moisture',
+        final List<_MetricItem> metrics = <_MetricItem>[
+          _MetricItem(
+            title: 'Soil Moisture',
         value: latest.soilVoltage != null ? '${latest.soilVoltage!.toStringAsFixed(2)}V' : '—',
-        icon: Icons.grass,
+            icon: Icons.grass,
         color: const Color(0xFFBCAAA4), // Soft Brown (200)
         bgColor: const Color(0xFFEFEBE9), // Brown 50
-      ),
-      _MetricItem(
-        title: 'UV Sensor',
+          ),
+          _MetricItem(
+            title: 'UV Sensor',
         value: latest.uvVoltage != null ? '${latest.uvVoltage!.toStringAsFixed(2)}V' : '—',
-        icon: Icons.wb_sunny,
+            icon: Icons.wb_sunny,
         color: const Color(0xFFFFE082), // Soft Amber (200)
         bgColor: const Color(0xFFFFF8E1), // Amber 50
-      ),
-      _MetricItem(
-        title: 'Gas Sensor',
+          ),
+          _MetricItem(
+            title: 'Gas Sensor',
         value: latest.mqVoltage != null ? '${latest.mqVoltage!.toStringAsFixed(2)}V' : '—',
-        icon: Icons.air,
+            icon: Icons.air,
         color: const Color(0xFFF48FB1), // Soft Rose (200)
         bgColor: const Color(0xFFFCE4EC), // Rose 50
-      ),
-      if (latest.greenhouseId != null)
-        _MetricItem(
-          title: 'Greenhouse',
-          value: latest.greenhouseId!,
-          icon: Icons.local_florist,
+          ),
+          if (latest.greenhouseId != null)
+            _MetricItem(
+              title: 'Greenhouse',
+              value: latest.greenhouseId!,
+              icon: Icons.local_florist,
           color: const Color(0xFFA5D6A7), // Soft Green (200)
           bgColor: const Color(0xFFE8F5E9), // Green 50
-        ),
-    ];
+            ),
+        ];
 
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -1353,25 +1347,25 @@ class _ModernMetricCard extends StatelessWidget {
       child: Row(
         children: <Widget>[
           // Visual (Icon) on the left
-          Container(
+              Container(
             padding: EdgeInsets.all(isMobile ? 10 : 12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: <Color>[
-                  metric.bgColor,
-                  metric.bgColor.withOpacity(0.7),
-                ],
-              ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[
+                      metric.bgColor,
+                      metric.bgColor.withOpacity(0.7),
+                    ],
+                  ),
               borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              metric.icon,
-              color: metric.color,
+                ),
+                child: Icon(
+                  metric.icon,
+                  color: metric.color,
               size: isMobile ? 22 : 26,
-            ),
-          ),
+                ),
+              ),
           const SizedBox(width: 14),
           // Data on the right
           Expanded(
@@ -1391,12 +1385,12 @@ class _ModernMetricCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
                 const SizedBox(height: 2),
-                Text(
-                  metric.value,
-                  style: TextStyle(
+          Text(
+            metric.value,
+            style: TextStyle(
                     fontSize: isMobile ? 18 : 22,
-                    fontWeight: FontWeight.bold,
-                    color: metric.color,
+              fontWeight: FontWeight.bold,
+              color: metric.color,
                     letterSpacing: 0.2,
                     height: 1.1,
                   ),
