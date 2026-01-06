@@ -34,6 +34,7 @@ class AppRoutes {
   static const String nutrition = '/nutrition';
   static const String stress = '/stress';
   static const String disease = '/disease';
+  static const String edas = '/edas';
 
   static final Set<String> _protectedRoutes = <String>{
     root,
@@ -46,6 +47,7 @@ class AppRoutes {
     nutrition,
     stress,
     disease,
+    edas,
     roleSelection,
     profileEdit,
   };
@@ -70,6 +72,7 @@ class AppRoutes {
     nutrition: (BuildContext context) => const NutritionHomeScreen(),
     stress: (BuildContext context) => const EosmHomeScreen(),
     disease: (BuildContext context) => const DiseaseHomeScreen(),
+    edas: (BuildContext context) => const DiseaseHomeScreen(),
   };
 
   static Route<dynamic> onGenerateRoute(
