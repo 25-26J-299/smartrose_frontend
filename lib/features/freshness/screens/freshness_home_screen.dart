@@ -489,9 +489,19 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
             _buildSensorRow(
               scheme,
               Icons.thermostat,
-              'Temperature',
-              '${reading.temperature.toStringAsFixed(1)}°C',
-              reading.temperature >= 15 && reading.temperature <= 25
+              'Air Temperature',
+              '${reading.airTemperature.toStringAsFixed(2)}°C',
+              reading.airTemperature >= 15 && reading.airTemperature <= 25
+                  ? Colors.green
+                  : Colors.orange,
+            ),
+            const SizedBox(height: 12),
+            _buildSensorRow(
+              scheme,
+              Icons.water,
+              'Water Temperature',
+              '${reading.waterTemperature.toStringAsFixed(2)}°C',
+              reading.waterTemperature >= 15 && reading.waterTemperature <= 25
                   ? Colors.green
                   : Colors.orange,
             ),
@@ -500,7 +510,7 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
               scheme,
               Icons.water_drop,
               'Humidity',
-              '${reading.humidity.toStringAsFixed(1)}%',
+              '${reading.humidity.toStringAsFixed(2)}%',
               reading.humidity >= 40 && reading.humidity <= 80
                   ? Colors.green
                   : Colors.orange,
@@ -510,7 +520,7 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
               scheme,
               Icons.air,
               'Gas Value',
-              reading.gasValue.toStringAsFixed(1),
+              reading.gasValue.toStringAsFixed(2),
               reading.gasValue < 100 ? Colors.green : Colors.red,
             ),
             const SizedBox(height: 12),
