@@ -11,7 +11,17 @@ import '../models/inm_action_history.dart';
 
 class InmApiService {
   // Base URL for the backend API
-  static const String _baseUrl = 'http://localhost:8000/api/v1/inm';
+  static String get _baseUrl {
+    if (kIsWeb) {
+      return 'http://localhost:8000/api/v1/inm';
+    }
+    // Android emulator needs 10.0.2.2 to access host machine
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000/api/v1/inm';
+    }
+    // Default for iOS simulator and other platforms
+    return 'http://localhost:8000/api/v1/inm';
+  }
 
   /// Fetches all sensor readings from the backend
   /// Returns a list of [InmSensorReading] sorted by timestamp (newest first)
