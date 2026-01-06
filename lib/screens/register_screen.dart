@@ -110,8 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        Navigator.of(context)
-            .pushReplacementNamed(AppRoutes.roleSelection);
+        Navigator.of(context).pushReplacementNamed(AppRoutes.roleSelection);
       } else {
         final String message =
             authState.errorMessage ?? 'Registration failed. Please try again.';
@@ -138,11 +137,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: <Color>[
-              softGreen,
-              lightGreen,
-              softGreen,
-            ],
+            colors: <Color>[softGreen, lightGreen, softGreen],
           ),
         ),
         child: SafeArea(
@@ -167,17 +162,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        // Rose Illustration
+                        // Logo
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: colorScheme.primary.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            Icons.local_florist,
-                            size: 64,
-                            color: colorScheme.primary,
+                          child: Image.asset(
+                            'assets/logo.png',
+                            width: 80,
+                            height: 80,
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -195,9 +190,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           child: Text(
                             'SmartRose',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
+                            style: Theme.of(context).textTheme.headlineMedium
                                 ?.copyWith(
                                   fontWeight: FontWeight.bold,
                                   color: colorScheme.primary,
@@ -209,7 +202,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Text(
                           'Create Account',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.primary,
                               ),
@@ -218,9 +212,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Text(
                           'Sign up to get started',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 32),
 
@@ -408,7 +401,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           validator: _validateConfirmPassword,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
                         ),
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
 
                         // Register Button
                         FilledButton(
@@ -455,10 +448,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               onPressed: _isLoading
                                   ? null
                                   : () {
-                                      Navigator.of(context)
-                                          .pushReplacementNamed(
-                                        AppRoutes.login,
-                                      );
+                                      Navigator.of(
+                                        context,
+                                      ).pushReplacementNamed(AppRoutes.login);
                                     },
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
@@ -488,4 +480,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-

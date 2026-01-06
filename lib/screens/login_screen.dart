@@ -131,17 +131,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        // Rose Illustration
+                        // Logo
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             color: colorScheme.primary.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(
-                            Icons.local_florist,
-                            size: 64,
-                            color: colorScheme.primary,
+                          child: Image.asset(
+                            'assets/logo.png',
+                            width: 80,
+                            height: 80,
                           ),
                         ),
                         const SizedBox(height: 16),
