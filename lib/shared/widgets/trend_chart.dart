@@ -66,7 +66,7 @@ class TrendChart extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
+                  color: Colors.black87,
                   letterSpacing: 0.3,
                 ),
               ),
@@ -136,9 +136,9 @@ class TrendChart extends StatelessWidget {
                   yValueMapper: (TrendPoint p, _) => p.value,
                   gradient: LinearGradient(
                     colors: <Color>[
-                      color.withOpacity(0.4),
-                      color.withOpacity(0.15),
-                      color.withOpacity(0.05),
+                      color.withOpacity(0.6),
+                      color.withOpacity(0.3),
+                      color.withOpacity(0.1),
                     ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,

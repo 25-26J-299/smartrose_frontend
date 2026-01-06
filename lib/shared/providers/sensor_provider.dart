@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import '../models/sensor_reading.dart';
 import '../models/eosm_stress_prediction.dart';
 import '../services/sensor_api.dart';
-import '../utils/collection_extensions.dart';
 
 // Start of EOSM
 class SensorProvider extends ChangeNotifier {
@@ -166,8 +165,8 @@ class SensorProvider extends ChangeNotifier {
         }
       }
 
-      // Initialize default selection
-      _selectedGreenhouseId ??= _latest?.greenhouseId ?? availableGreenhouseIds.firstOrNull ?? 'ALL';
+      // Initialize default selection to 'ALL' as requested
+      _selectedGreenhouseId ??= 'ALL';
     } catch (err) {
       debugPrint('SensorProvider.refresh error: $err');
       _errorMessage = 'Unable to load sensor data. Please try again.';
