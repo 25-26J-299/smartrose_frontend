@@ -135,8 +135,12 @@ class _GaugePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (size.width <= 0 || size.height <= 0) return;
+
     final Offset center = Offset(size.width / 2, size.height * 0.92);
     final double radius = size.width * 0.32;
+    if (radius <= 0) return;
+
     const double startAngle = math.pi;
     const double sweepAngle = math.pi;
 
@@ -146,8 +150,11 @@ class _GaugePainter extends CustomPainter {
       ..strokeWidth = 16
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
+    
+    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
+    
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
+      arcRect,
       startAngle,
       sweepAngle,
       false,
@@ -158,38 +165,43 @@ class _GaugePainter extends CustomPainter {
     double currentStart = startAngle;
     double lastBound = min;
     for (final GaugeSegment segment in segments) {
+      final double range = max - min;
+      if (range <= 0) continue;
+
       final double segmentSweep =
-          sweepAngle * ((segment.to - lastBound) / (max - min)).clamp(0.0, 1.0);
+          sweepAngle * ((segment.to - lastBound) / range).clamp(0.0, 1.0);
       
-      // Create gradient for the segment
-      final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
-      final Paint paint = Paint()
-        ..shader = SweepGradient(
-          startAngle: currentStart,
-          endAngle: currentStart + segmentSweep,
-          colors: <Color>[
-            segment.color,
-            segment.color.withOpacity(0.7),
-            segment.color,
-          ],
-        ).createShader(arcRect)
-        ..strokeWidth = 16
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round;
-      
-      canvas.drawArc(
-        arcRect,
-        currentStart,
-        segmentSweep,
-        false,
-        paint,
-      );
+      if (segmentSweep > 0.001) {
+        // Create gradient for the segment
+        final Paint paint = Paint()
+          ..shader = SweepGradient(
+            startAngle: currentStart,
+            endAngle: currentStart + segmentSweep,
+            colors: <Color>[
+              segment.color,
+              segment.color.withOpacity(0.7),
+              segment.color,
+            ],
+          ).createShader(arcRect)
+          ..strokeWidth = 16
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round;
+        
+        canvas.drawArc(
+          arcRect,
+          currentStart,
+          segmentSweep,
+          false,
+          paint,
+        );
+      }
       currentStart += segmentSweep;
       lastBound = segment.to;
     }
 
     // Draw needle
-    final double normalized = ((value - min) / (max - min)).clamp(0.0, 1.0);
+    final double range = max - min;
+    final double normalized = range > 0 ? ((value - min) / range).clamp(0.0, 1.0) : 0.5;
     final double needleAngle = startAngle + sweepAngle * normalized;
     final Offset needleEnd = center +
         Offset(
@@ -197,15 +209,15 @@ class _GaugePainter extends CustomPainter {
           radius * math.sin(needleAngle),
         );
 
-    // Needle shadow
+    // Needle shadow (simplified, avoiding MaskFilter.blur which can cause Impeller errors)
     final Paint needleShadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.2)
+      ..color = Colors.black.withOpacity(0.1)
       ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      ..strokeCap = StrokeCap.round;
+    
     canvas.drawLine(
-      center + const Offset(2, 2),
-      needleEnd + const Offset(2, 2),
+      center + const Offset(1, 1),
+      needleEnd + const Offset(1, 1),
       needleShadowPaint,
     );
 
@@ -217,13 +229,14 @@ class _GaugePainter extends CustomPainter {
     canvas.drawLine(center, needleEnd, needlePaint);
 
     // Center circle with gradient
+    final Rect centerRect = Rect.fromCircle(center: center, radius: 8);
     final Paint centerPaint = Paint()
       ..shader = RadialGradient(
         colors: <Color>[
           Colors.white,
           Colors.grey.shade300,
         ],
-      ).createShader(Rect.fromCircle(center: center, radius: 8));
+      ).createShader(centerRect);
     canvas.drawCircle(center, 8, centerPaint);
     
     // Center circle border

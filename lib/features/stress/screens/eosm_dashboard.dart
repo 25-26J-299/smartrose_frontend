@@ -739,175 +739,6 @@ String _formatDateTime(DateTime dt, {bool isMobile = false}) {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({
-    required this.selectedGreenhouse,
-    required this.lastUpdated,
-    required this.baseStationId,
-    required this.scheme,
-    required this.greenhouseOptions,
-    required this.greenhouseStations,
-    required this.onSelect,
-    required this.isMobile,
-  });
-
-  final String selectedGreenhouse;
-  final DateTime? lastUpdated;
-  final String? baseStationId;
-  final ColorScheme scheme;
-  final List<String> greenhouseOptions;
-  final Map<String, String?> greenhouseStations;
-  final ValueChanged<String?> onSelect;
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    final String formatted = lastUpdated != null
-        ? _formatDateTime(lastUpdated!, isMobile: isMobile)
-        : 'Waiting for first reading';
-    final String titleSuffix =
-        selectedGreenhouse == 'ALL' ? 'All Greenhouses' : selectedGreenhouse;
-    
-    final Widget titleSection = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Row(
-          children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: <Color>[
-                    scheme.primary,
-                    scheme.primary.withOpacity(0.8),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.local_florist, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'SmartRose',
-                style: (isMobile
-                        ? Theme.of(context).textTheme.titleLarge
-                        : Theme.of(context).textTheme.headlineSmall)
-                    ?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: scheme.primary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          '$titleSuffix Dashboard',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w500,
-              ),
-        ),
-        SizedBox(height: isMobile ? 4 : 6),
-        Row(
-          children: <Widget>[
-            Icon(Icons.schedule, size: isMobile ? 14 : 16, color: scheme.onSurfaceVariant),
-            SizedBox(width: isMobile ? 3 : 4),
-            Flexible(
-              child: Text(
-                'Last updated: $formatted',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        if (baseStationId != null) ...<Widget>[
-          SizedBox(height: isMobile ? 4 : 6),
-          Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: isMobile ? 6 : 8,
-              vertical: isMobile ? 3 : 4,
-            ),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.sensors, size: isMobile ? 12 : 14),
-                SizedBox(width: isMobile ? 3 : 4),
-                Flexible(
-                  child: Text(
-                    'Base Station: $baseStationId',
-                    style: TextStyle(fontSize: isMobile ? 11 : null),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-
-    final Widget dropdown = SizedBox(
-      width: isMobile ? double.infinity : 220,
-      child: DropdownButtonFormField<String>(
-            initialValue: greenhouseOptions.contains(selectedGreenhouse)
-                ? selectedGreenhouse
-                : greenhouseOptions.firstOrNull,
-            items: greenhouseOptions
-                .map(
-                  (String id) => DropdownMenuItem<String>(
-                    value: id,
-                    child: Text(
-                      id == 'ALL'
-                          ? 'All Greenhouses'
-                          : '$id${greenhouseStations[id] != null ? ' · ${greenhouseStations[id]}' : ''}',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                )
-                .toList(),
-            onChanged: onSelect,
-            decoration: const InputDecoration(
-              labelText: 'Greenhouse',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
-        );
-
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          titleSection,
-          const SizedBox(height: 12),
-          dropdown,
-        ],
-      );
-    }
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(child: titleSection),
-        const SizedBox(width: 16),
-        dropdown,
-      ],
-    );
-  }
-}
-
 class _GaugeRow extends StatelessWidget {
   const _GaugeRow({required this.latest, required this.isMobile});
 
@@ -916,7 +747,6 @@ class _GaugeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final bool wide = !isMobile && constraints.maxWidth > 900;
@@ -961,132 +791,20 @@ class _GaugeRow extends StatelessWidget {
 }
 
 
-class _RawPanels extends StatelessWidget {
-  const _RawPanels({required this.latest, required this.isMobile});
+enum _MetricType { temperature, humidity, soilVoltage, gasVoltage, uvVoltage }
 
-  final SensorReading latest;
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool wide = !isMobile && constraints.maxWidth > 1000;
-        final double width = wide ? (constraints.maxWidth - 24) / 3 : constraints.maxWidth;
-        final double spacing = isMobile ? 10 : 12;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: <Widget>[
-            _RawCard(
-              title: 'Soil Moisture',
-              value: latest.soilVoltage != null
-                  ? '${latest.soilVoltage!.toStringAsFixed(2)} V'
-                  : '—',
-              color: scheme.primary,
-              width: width,
-              isMobile: isMobile,
-            ),
-            _RawCard(
-              title: 'UV Sensor',
-              value: latest.uvVoltage != null
-                  ? '${latest.uvVoltage!.toStringAsFixed(2)} V'
-                  : '—',
-              color: const Color(0xFFFFC107),
-              width: width,
-              isMobile: isMobile,
-            ),
-            _RawCard(
-              title: 'Gas Sensor',
-              value: latest.mqVoltage != null
-                  ? '${latest.mqVoltage!.toStringAsFixed(2)} V'
-                  : '—',
-              color: const Color(0xFF9C27B0),
-              width: width,
-              isMobile: isMobile,
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _RawCard extends StatelessWidget {
-  const _RawCard({
-    required this.title,
-    required this.value,
-    required this.color,
-    required this.width,
-    required this.isMobile,
-  });
-
-  final String title;
-  final String value;
-  final Color color;
-  final double width;
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 20,
-              spreadRadius: 0,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(isMobile ? 12 : 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      value,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TrendGrid extends StatelessWidget {
+class _TrendGrid extends StatefulWidget {
   const _TrendGrid({required this.readings, required this.isMobile});
 
   final List<SensorReading> readings;
   final bool isMobile;
+
+  @override
+  State<_TrendGrid> createState() => _TrendGridState();
+}
+
+class _TrendGridState extends State<_TrendGrid> {
+  _MetricType _selectedMetric = _MetricType.temperature;
 
   List<TrendPoint> _map(List<SensorReading> source, double? Function(SensorReading) selector) {
     return source
@@ -1097,74 +815,102 @@ class _TrendGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final bool wide = !isMobile && constraints.maxWidth > 1100;
-        final double width = wide ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth;
-        final double spacing = isMobile ? 12 : 16;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: <Widget>[
-            SizedBox(
-              width: width,
-              child: TrendChart(
-                title: 'Temperature (°C)',
-                unit: '°C',
-                color: const Color(0xFFFF6B35),
-                optimalMin: null,
-                optimalMax: null,
-                points: _map(readings, (SensorReading r) => r.temperature),
+    String title;
+    String unit;
+    Color color;
+    List<TrendPoint> points;
+
+    switch (_selectedMetric) {
+      case _MetricType.temperature:
+        title = 'Temperature (°C)';
+        unit = '°C';
+        color = const Color(0xFFFF6B35);
+        points = _map(widget.readings, (SensorReading r) => r.temperature);
+        break;
+      case _MetricType.humidity:
+        title = 'Humidity (%)';
+        unit = '%';
+        color = const Color(0xFF2196F3);
+        points = _map(widget.readings, (SensorReading r) => r.humidity);
+        break;
+      case _MetricType.soilVoltage:
+        title = 'Soil Voltage (V)';
+        unit = 'V';
+        color = const Color(0xFF8B4513);
+        points = _map(widget.readings, (SensorReading r) => r.soilVoltage);
+        break;
+      case _MetricType.gasVoltage:
+        title = 'Gas Voltage (V)';
+        unit = 'V';
+        color = const Color(0xFF9C27B0);
+        points = _map(widget.readings, (SensorReading r) => r.mqVoltage);
+        break;
+      case _MetricType.uvVoltage:
+        title = 'UV Voltage (V)';
+        unit = 'V';
+        color = const Color(0xFFFFC107);
+        points = _map(widget.readings, (SensorReading r) => r.uvVoltage);
+        break;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SegmentedButton<_MetricType>(
+            segments: const <ButtonSegment<_MetricType>>[
+              ButtonSegment<_MetricType>(
+                value: _MetricType.temperature,
+                label: Text('Temp'),
+                icon: Icon(Icons.thermostat, size: 16),
               ),
-            ),
-            SizedBox(
-              width: width,
-              child: TrendChart(
-                title: 'Humidity (%)',
-                unit: '%',
-                color: const Color(0xFF2196F3),
-                optimalMin: null,
-                optimalMax: null,
-                points: _map(readings, (SensorReading r) => r.humidity),
+              ButtonSegment<_MetricType>(
+                value: _MetricType.humidity,
+                label: Text('Hum'),
+                icon: Icon(Icons.water_drop, size: 16),
               ),
-            ),
-            SizedBox(
-              width: width,
-              child: TrendChart(
-                title: 'Soil Voltage (V)',
-                unit: 'V',
-                color: const Color(0xFF8B4513),
-                optimalMin: null,
-                optimalMax: null,
-                points: _map(readings, (SensorReading r) => r.soilVoltage),
+              ButtonSegment<_MetricType>(
+                value: _MetricType.soilVoltage,
+                label: Text('Soil'),
+                icon: Icon(Icons.grass, size: 16),
               ),
-            ),
-            SizedBox(
-              width: width,
-              child: TrendChart(
-                title: 'Gas Voltage (V)',
-                unit: 'V',
-                color: const Color(0xFF9C27B0),
-                optimalMin: null,
-                optimalMax: null,
-                points: _map(readings, (SensorReading r) => r.mqVoltage),
+              ButtonSegment<_MetricType>(
+                value: _MetricType.gasVoltage,
+                label: Text('Gas'),
+                icon: Icon(Icons.air, size: 16),
               ),
-            ),
-            SizedBox(
-              width: width,
-              child: TrendChart(
-                title: 'UV Voltage (V)',
-                unit: 'V',
-                color: const Color(0xFFFFC107),
-                optimalMin: null,
-                optimalMax: null,
-                points: _map(readings, (SensorReading r) => r.uvVoltage),
+              ButtonSegment<_MetricType>(
+                value: _MetricType.uvVoltage,
+                label: Text('UV'),
+                icon: Icon(Icons.wb_sunny, size: 16),
               ),
+            ],
+            selected: <_MetricType>{_selectedMetric},
+            onSelectionChanged: (Set<_MetricType> newSelection) {
+              setState(() {
+                _selectedMetric = newSelection.first;
+              });
+            },
+            showSelectedIcon: false,
+            style: SegmentedButton.styleFrom(
+              backgroundColor: Colors.white,
+              selectedBackgroundColor: color.withOpacity(0.1),
+              selectedForegroundColor: color,
+              side: BorderSide(color: Colors.grey.shade300),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+        const SizedBox(height: 16),
+        TrendChart(
+          title: title,
+          unit: unit,
+          color: color,
+          optimalMin: null,
+          optimalMax: null,
+          points: points,
+        ),
+      ],
     );
   }
 }
@@ -1239,155 +985,6 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// Start of EOSM
-class _PredictionCard extends StatelessWidget {
-  const _PredictionCard({required this.prediction, required this.isMobile});
-
-  final EosmStressPrediction prediction;
-  final bool isMobile;
-
-  @override
-  Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color stressColor = prediction.stressColor;
-    
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 20,
-            spreadRadius: 0,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(isMobile ? 12 : 16),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              stressColor.withOpacity(0.05),
-              stressColor.withOpacity(0.02),
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(isMobile ? 14 : 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Container(
-                    padding: EdgeInsets.all(isMobile ? 6 : 8),
-                    decoration: BoxDecoration(
-                      color: stressColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
-                    ),
-                    child: Icon(Icons.psychology, color: stressColor, size: isMobile ? 20 : 24),
-                  ),
-                  SizedBox(width: isMobile ? 8 : 12),
-                  Expanded(
-                    child: Text(
-                      'ML Stress Prediction',
-                      style: (isMobile ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: isMobile ? 12 : 16),
-              Row(
-                children: <Widget>[
-                  Container(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 12 : 16,
-                      vertical: isMobile ? 8 : 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: stressColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(isMobile ? 10 : 12),
-                      border: Border.all(
-                        color: stressColor.withOpacity(0.4),
-                        width: isMobile ? 1.5 : 2,
-                      ),
-                    ),
-                    child: Text(
-                      prediction.stressLabel,
-                      style: (isMobile ? textTheme.titleMedium : textTheme.titleLarge)?.copyWith(
-                        color: stressColor,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: isMobile ? 1.0 : 1.2,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: isMobile ? 12 : 16),
-                  Expanded(
-                    child: Text(
-                      '${(prediction.highestProbability * 100).toStringAsFixed(1)}% confidence',
-                      style: (isMobile ? textTheme.bodyMedium : textTheme.bodyLarge)?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (prediction.stressProbabilities.isNotEmpty) ...<Widget>[
-                SizedBox(height: isMobile ? 12 : 16),
-                Text(
-                  'Probabilities:',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                SizedBox(height: isMobile ? 8 : 10),
-                Wrap(
-                  spacing: isMobile ? 8 : 10,
-                  runSpacing: isMobile ? 6 : 8,
-                  children: prediction.stressProbabilities.entries.map((entry) {
-                    return Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isMobile ? 10 : 12,
-                        vertical: isMobile ? 6 : 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: scheme.surfaceVariant.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(isMobile ? 8 : 10),
-                        border: Border.all(
-                          color: scheme.outline.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        '${entry.key}: ${(entry.value * 100).toStringAsFixed(1)}%',
-                        style: textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          fontSize: isMobile ? 12 : null,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 class _ModernHeader extends StatelessWidget {
   const _ModernHeader({
     required this.selectedGreenhouse,
