@@ -86,16 +86,18 @@ class _DashboardView extends StatelessWidget {
                                   selected: selectedGh,
                       onSelect: provider.setSelectedGreenhouse,
                       isMobile: isMobile,
-                                ),
+                    ),
                                 const SizedBox(height: 16),
                                 if (prediction != null) ...[
-                      _ModernPredictionCard(
-                        prediction: prediction,
-                        isMobile: isMobile,
-                        lastUpdated: latest?.displayTime,
-                    ),
+                                  _ModernPredictionCard(
+                                    prediction: prediction,
+                                    isMobile: isMobile,
+                                    lastUpdated: latest?.displayTime,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _ModernEnergyOptimizationCard(isMobile: isMobile),
                     SizedBox(height: isMobile ? 16 : 24),
-                    ],
+                                ],
                     if (provider.errorMessage != null && latest == null)
                       _ErrorBanner(message: provider.errorMessage!),
                     if (latest != null) ...<Widget>[
@@ -173,48 +175,350 @@ class _DashboardView extends StatelessWidget {
   }
 }
 
-            class _RecentActivityLog extends StatelessWidget {
-              const _RecentActivityLog({required this.readings, required this.isMobile});
+class _RecentActivityLog extends StatelessWidget {
+  const _RecentActivityLog({required this.readings, required this.isMobile});
 
-              final List<SensorReading> readings;
-              final bool isMobile;
+  final List<SensorReading> readings;
+  final bool isMobile;
 
-              @override
-              Widget build(BuildContext context) {
-                if (readings.isEmpty) return const SizedBox.shrink();
+  @override
+  Widget build(BuildContext context) {
+    if (readings.isEmpty) return const SizedBox.shrink();
 
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 20,
-                        spreadRadius: 0,
-                        offset: const Offset(0, 8),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: readings.length,
+        separatorBuilder: (context, index) => Divider(
+          height: 1,
+          indent: 16,
+          endIndent: 16,
+          color: Colors.grey.shade100,
+        ),
+        itemBuilder: (context, index) {
+          final reading = readings[index];
+          return _ActivityLogItem(reading: reading, isMobile: isMobile);
+        },
+      ),
+    );
+  }
+}
+
+class _ModernEnergyOptimizationCard extends StatefulWidget {
+  const _ModernEnergyOptimizationCard({required this.isMobile});
+  final bool isMobile;
+
+  @override
+  State<_ModernEnergyOptimizationCard> createState() => _ModernEnergyOptimizationCardState();
+}
+
+class _ModernEnergyOptimizationCardState extends State<_ModernEnergyOptimizationCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Header & Quick Impact Stats (Always visible)
+          GestureDetector(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.bolt_rounded, color: Color(0xFF1B5E20), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Energy Optimization',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Colors.black),
+                            ),
+                            Text(
+                              'AI-recommended actuator control',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: readings.length,
-                    separatorBuilder: (context, index) => Divider(
-                      height: 1,
-                      indent: 16,
-                      endIndent: 16,
-                      color: Colors.grey.shade100,
+                ),
+                Row(
+                  children: [
+                    // Pill showing total saving
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B5E20),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '≈38% SAVING',
+                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                      ),
                     ),
-                    itemBuilder: (context, index) {
-                      final reading = readings[index];
-                      return _ActivityLogItem(reading: reading, isMobile: isMobile);
-                    },
+                    const SizedBox(width: 8),
+                    // Expansion Arrow
+                    AnimatedRotation(
+                      turns: _isExpanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 300),
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.grey.shade400,
+                        size: 24,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // 2, 3, 4 Sections (Visible only when expanded)
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 20),
+                // 2. Main Impact Progress Bar
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F8E9), // Very light fresh green
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFA5D6A7).withOpacity(0.2)),
                   ),
-                );
-              }
-            }
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'ESTIMATED ENERGY USAGE',
+                            style: TextStyle(
+                              color: const Color(0xFF1B5E20).withOpacity(0.6),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                          const Text(
+                            '2.8 kWh',
+                            style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w900),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Stack(
+                        children: [
+                          Container(
+                            height: 8,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          FractionallySizedBox(
+                            widthFactor: 0.38,
+                            child: Container(
+                              height: 8,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF4CAF50).withOpacity(0.3),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // 3. Actuator Grid
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double cardWidth = (constraints.maxWidth - 12) / 2;
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('Fan Level', 'HIGH', Icons.mode_fan_off_rounded, const Color(0xFFF44336))),
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('Water Pump', 'LOW', Icons.water_rounded, const Color(0xFFA5D6A7))),
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('AC Level', 'MEDIUM', Icons.ac_unit_rounded, const Color(0xFFFFCC80))),
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('UV Shade', 'FULL', Icons.wb_shade_rounded, const Color(0xFFF44336))),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // 4. ML Reasoning
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border(
+                      left: BorderSide(color: const Color(0xFF1B5E20), width: 4),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.psychology_rounded, color: Color(0xFF1B5E20), size: 20),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'AI REASONING',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF1B5E20),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Extreme Humidity (91.2%) detected. To prevent fungal stress, the AI has Reduced Water and prioritized Max Fans for air circulation. AC is set to MEDIUM for essential dehumidification, while FULL SHADING blocks solar heat, maintaining safety with 35% efficiency.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black87,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            crossFadeState: _isExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 300),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActuatorChip(String title, String level, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  level,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
             class _ActivityLogItem extends StatelessWidget {
               const _ActivityLogItem({required this.reading, required this.isMobile});
@@ -228,7 +532,7 @@ class _DashboardView extends StatelessWidget {
                 final dateStr = DateFormat('MMM d').format(reading.displayTime);
                 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
                     children: [
                       // Date & Time
@@ -296,8 +600,8 @@ class _DashboardView extends StatelessWidget {
                         ),
                       ),
                     ],
-                  ),
-                );
+          ),
+        );
               }
 
               Widget _buildMiniMetric(IconData icon, String value, Color color) {
@@ -449,9 +753,9 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                     onSelect: (val) {
                       setState(() => selectedGh = val ?? 'ALL');
                       loadHistory();
-                    },
+                            },
                     isMobile: isMobile,
-                  ),
+                          ),
                   const SizedBox(height: 16),
                   // Date Selectors
                   Row(
@@ -470,8 +774,8 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                               if (picked != null) {
                               setState(() => startDate = picked);
                               loadHistory();
-                            }
-                          },
+                              }
+                            },
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -489,16 +793,16 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                               if (picked != null) {
                               setState(() => endDate = picked.add(const Duration(days: 1)));
                               loadHistory();
-                            }
-                          },
+                              }
+                            },
                         ),
                       ),
                     ],
                   ),
                 ],
-              ),
-            ),
-          ),
+                              ),
+                            ),
+                          ),
           const SizedBox(height: 20),
           
           // Results List
@@ -544,7 +848,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
           onBackPressed: () => Navigator.of(context).pop(),
         ),
         body: buildContent(),
-      );
+                                    );
     }
 
     return Dialog(
@@ -574,11 +878,11 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.grey.shade200,
                       padding: const EdgeInsets.all(8),
-                    ),
-                  ),
+                                    ),
+                                  ),
                 ],
-              ),
-            ),
+                                ),
+                              ),
             const SizedBox(height: 20),
             Expanded(child: buildContent()),
           ],
@@ -723,8 +1027,8 @@ class _DetailedHistoryCard extends StatelessWidget {
                 if (reading.mqVoltage != null)
                   _buildMetricItem(Icons.air, '${reading.mqVoltage!.toStringAsFixed(1)}V', 'Gas', const Color(0xFFF48FB1)),
               ],
-            ),
-          ),
+                                        ),
+                                      ),
         ],
       ),
     );
@@ -759,9 +1063,9 @@ class _DetailedHistoryCard extends StatelessWidget {
                 fontWeight: FontWeight.bold, 
                 letterSpacing: 0.5
               )
-            ),
-          ],
-        ),
+                                    ),
+                                ],
+                              ),
       ],
     );
   }
@@ -841,7 +1145,7 @@ Widget _buildGreenhouseFilterBar({
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
               fontSize: 13,
                   ),
-          ),
+            ),
           selected: isSelected,
           onSelected: (bool selected) {
             if (selected) onSelect(id);
@@ -858,7 +1162,7 @@ Widget _buildGreenhouseFilterBar({
               width: 1.5,
             ),
           ),
-      );
+    );
       },
     ),
   );
@@ -1219,7 +1523,7 @@ class _ModernPredictionCard extends StatelessWidget {
                                   Icons.psychology_outlined,
                                   color: stressColor,
                                   size: isMobile ? (MediaQuery.of(context).size.width < 340 ? 32 : 42) : 48,
-                                ),
+                    ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
@@ -1240,27 +1544,27 @@ class _ModernPredictionCard extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(
-                                '${(prediction.highestProbability * 100).toStringAsFixed(0)}%',
-                                style: TextStyle(
+                    Text(
+                      '${(prediction.highestProbability * 100).toStringAsFixed(0)}%',
+                      style: TextStyle(
                                   fontSize: isMobile ? 20 : 24,
                                   fontWeight: FontWeight.w900,
-                                  color: stressColor,
+                        color: stressColor,
                                   height: 1.0,
-                                ),
-                              ),
+                      ),
+                    ),
                               const SizedBox(height: 2),
-                              Text(
+                    Text(
                                 'CONFIDENCE',
-                                style: TextStyle(
+                      style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w900,
                                   color: stressColor.withOpacity(0.8),
                                   letterSpacing: 0.8,
-                                ),
-                              ),
-                            ],
-                          ),
+                      ),
+                    ),
+                  ],
+              ),
             ],
           ),
           const SizedBox(height: 16),
