@@ -163,6 +163,7 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
     final ColorScheme scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      backgroundColor: scheme.surfaceContainerHighest,
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
