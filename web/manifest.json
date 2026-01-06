@@ -1,11 +1,11 @@
 {
-    "name": "smartrose_frontend",
-    "short_name": "smartrose_frontend",
+    "name": "Smart Rose",
+    "short_name": "Smart Rose",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Smart Rose - A premium agricultural monitoring app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
