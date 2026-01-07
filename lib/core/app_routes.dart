@@ -61,7 +61,8 @@ class AppRoutes {
     root: (BuildContext context) => const BottomNavigationShell(),
     home: (BuildContext context) => const BottomNavigationShell(),
     inmSensors: (BuildContext context) => const InmOverviewScreen(),
-    inmActionsHistory: (BuildContext context) => const InmActionsHistoryScreen(),
+    inmActionsHistory: (BuildContext context) =>
+        const InmActionsHistoryScreen(),
 
     // Legacy/other routes
     registration: (BuildContext context) => const RegistrationScreen(),
