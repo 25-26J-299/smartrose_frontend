@@ -51,11 +51,6 @@ class _DashboardView extends StatelessWidget {
         final EdasSensorReading? latest = provider.latestForSelected;
         final EdasDiseasePrediction? prediction = provider.latestPrediction;
         final List<EdasSensorReading> history = provider.readingsForSelected;
-        final List<String> greenhouseOptions = <String>[
-          'ALL',
-          ...provider.availableGreenhouseIds,
-        ];
-        final String selectedGh = provider.selectedGreenhouseId ?? 'ALL';
 
         if (provider.isLoading && latest == null) {
           return const Center(child: CircularProgressIndicator());
@@ -77,13 +72,6 @@ class _DashboardView extends StatelessWidget {
                 return ListView(
                   padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
                   children: <Widget>[
-                    _buildGreenhouseFilterBar(
-                      options: greenhouseOptions,
-                      selected: selectedGh,
-                      onSelect: provider.setSelectedGreenhouse,
-                      isMobile: isMobile,
-                    ),
-                    const SizedBox(height: 16),
                     if (prediction != null) ...[
                       _DiseasePredictionCard(
                         prediction: prediction,
@@ -96,13 +84,17 @@ class _DashboardView extends StatelessWidget {
                       _ErrorBanner(message: provider.errorMessage!),
                     if (latest != null) ...<Widget>[
                       _SensorMetricsGrid(
-                        key: ValueKey('${latest.id}_${latest.displayTime.millisecondsSinceEpoch}'),
+                        key: ValueKey(
+                          '${latest.id}_${latest.displayTime.millisecondsSinceEpoch}',
+                        ),
                         latest: latest,
                         isMobile: isMobile,
                       ),
                       SizedBox(height: isMobile ? 16 : 24),
                       _TemperatureDifferenceCard(
-                        key: ValueKey('temp_diff_${latest.id}_${latest.displayTime.millisecondsSinceEpoch}'),
+                        key: ValueKey(
+                          'temp_diff_${latest.id}_${latest.displayTime.millisecondsSinceEpoch}',
+                        ),
                         latest: latest,
                         isMobile: isMobile,
                       ),
@@ -118,7 +110,8 @@ class _DashboardView extends StatelessWidget {
                       _TrendGrid(readings: history, isMobile: isMobile)
                     else
                       _EmptyState(
-                        message: 'Not enough history yet. Ingest more readings.',
+                        message:
+                            'Not enough history yet. Ingest more readings.',
                         onRetry: () => provider.refresh(force: true),
                       ),
                     SizedBox(height: isMobile ? 24 : 32),
@@ -130,7 +123,9 @@ class _DashboardView extends StatelessWidget {
                         onTap: () => _showHistoryDialog(context, provider),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF4CAF50).withOpacity(0.1),
                             borderRadius: BorderRadius.circular(20),
@@ -271,8 +266,8 @@ class _DiseasePredictionCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: isMobile
                               ? (MediaQuery.of(context).size.width < 340
-                                  ? 28
-                                  : 34)
+                                    ? 28
+                                    : 34)
                               : 40,
                           fontWeight: FontWeight.w900,
                           color: riskColor,
@@ -345,20 +340,14 @@ class _DiseasePredictionCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.grey.shade50,
                 borderRadius: BorderRadius.circular(14),
-                border: Border(
-                  left: BorderSide(color: riskColor, width: 4),
-                ),
+                border: Border(left: BorderSide(color: riskColor, width: 4)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Icon(
-                        Icons.lightbulb_outline,
-                        color: riskColor,
-                        size: 18,
-                      ),
+                      Icon(Icons.lightbulb_outline, color: riskColor, size: 18),
                       const SizedBox(width: 12),
                       Text(
                         'RECOMMENDATIONS',
@@ -372,26 +361,28 @@ class _DiseasePredictionCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  ...prediction.recommendations!.map((rec) => Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('• ', style: TextStyle(color: riskColor)),
-                            Expanded(
-                              child: Text(
-                                rec,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade800,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.3,
-                                ),
+                  ...prediction.recommendations!.map(
+                    (rec) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('• ', style: TextStyle(color: riskColor)),
+                          Expanded(
+                            child: Text(
+                              rec,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade800,
+                                fontWeight: FontWeight.w600,
+                                height: 1.3,
                               ),
                             ),
-                          ],
-                        ),
-                      )),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -468,8 +459,10 @@ class _SensorMetricsGrid extends StatelessWidget {
           columns = constraints.maxWidth < 340 ? 1 : 2;
         } else {
           columns = metrics.length > 4 ? 4 : metrics.length;
-          if (constraints.maxWidth < 600) columns = 2;
-          else if (constraints.maxWidth < 900) columns = 3;
+          if (constraints.maxWidth < 600)
+            columns = 2;
+          else if (constraints.maxWidth < 900)
+            columns = 3;
         }
 
         final double spacing = isMobile ? 12 : 16;
@@ -507,8 +500,8 @@ class _TemperatureDifferenceCard extends StatelessWidget {
     final Color diffColor = tempDiff > 2
         ? const Color(0xFFFF6B6B)
         : tempDiff < -2
-            ? const Color(0xFF4ECDC4)
-            : const Color(0xFF4CAF50);
+        ? const Color(0xFF4ECDC4)
+        : const Color(0xFF4CAF50);
 
     return Container(
       padding: EdgeInsets.all(isMobile ? 16 : 20),
@@ -573,8 +566,8 @@ class _TemperatureDifferenceCard extends StatelessWidget {
                   tempDiff > 2
                       ? 'Plant warmer than air'
                       : tempDiff < -2
-                          ? 'Plant cooler than air'
-                          : 'Normal difference',
+                      ? 'Plant cooler than air'
+                      : 'Normal difference',
                   style: TextStyle(
                     fontSize: isMobile ? 11 : 12,
                     color: Colors.grey.shade500,
@@ -692,7 +685,7 @@ enum _MetricType {
   plantTemperature,
   airTemperature,
   humidity,
-  temperatureDifference
+  temperatureDifference,
 }
 
 class _TrendGrid extends StatefulWidget {
@@ -709,7 +702,9 @@ class _TrendGridState extends State<_TrendGrid> {
   _MetricType _selectedMetric = _MetricType.plantTemperature;
 
   List<TrendPoint> _map(
-      List<EdasSensorReading> source, double Function(EdasSensorReading) selector) {
+    List<EdasSensorReading> source,
+    double Function(EdasSensorReading) selector,
+  ) {
     return source
         .map((EdasSensorReading r) => TrendPoint(r.displayTime, selector(r)))
         .toList();
@@ -763,14 +758,30 @@ class _TrendGridState extends State<_TrendGrid> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
             children: <Widget>[
-              _buildMetricTab(_MetricType.plantTemperature, 'Plant Temp',
-                  Icons.thermostat, const Color(0xFFFF6B6B)),
-              _buildMetricTab(_MetricType.airTemperature, 'Air Temp',
-                  Icons.ac_unit, const Color(0xFF4ECDC4)),
-              _buildMetricTab(_MetricType.humidity, 'Humidity',
-                  Icons.water_drop, const Color(0xFF90CAF9)),
-              _buildMetricTab(_MetricType.temperatureDifference, 'Temp Diff',
-                  Icons.compare_arrows, const Color(0xFF4CAF50)),
+              _buildMetricTab(
+                _MetricType.plantTemperature,
+                'Plant Temp',
+                Icons.thermostat,
+                const Color(0xFFFF6B6B),
+              ),
+              _buildMetricTab(
+                _MetricType.airTemperature,
+                'Air Temp',
+                Icons.ac_unit,
+                const Color(0xFF4ECDC4),
+              ),
+              _buildMetricTab(
+                _MetricType.humidity,
+                'Humidity',
+                Icons.water_drop,
+                const Color(0xFF90CAF9),
+              ),
+              _buildMetricTab(
+                _MetricType.temperatureDifference,
+                'Temp Diff',
+                Icons.compare_arrows,
+                const Color(0xFF4CAF50),
+              ),
             ],
           ),
         ),
@@ -788,7 +799,11 @@ class _TrendGridState extends State<_TrendGrid> {
   }
 
   Widget _buildMetricTab(
-      _MetricType type, String label, IconData icon, Color color) {
+    _MetricType type,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
     final bool isSelected = _selectedMetric == type;
     return Padding(
       padding: const EdgeInsets.only(right: 4),
@@ -807,7 +822,7 @@ class _TrendGridState extends State<_TrendGrid> {
                       color: Colors.black.withOpacity(0.05),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
-                    )
+                    ),
                   ]
                 : [],
           ),
@@ -929,19 +944,29 @@ class _ActivityLogItem extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  _buildMiniMetric(Icons.thermostat,
-                      '${reading.plantTemperature.toStringAsFixed(2)}°', const Color(0xFFFF6B6B)),
-                  const SizedBox(width: 12),
-                  _buildMiniMetric(Icons.ac_unit,
-                      '${reading.airTemperature.toStringAsFixed(2)}°', const Color(0xFF4ECDC4)),
-                  const SizedBox(width: 12),
-                  _buildMiniMetric(Icons.water_drop,
-                      '${reading.humidity.toStringAsFixed(2)}%', const Color(0xFF90CAF9)),
+                  _buildMiniMetric(
+                    Icons.thermostat,
+                    '${reading.plantTemperature.toStringAsFixed(2)}°',
+                    const Color(0xFFFF6B6B),
+                  ),
                   const SizedBox(width: 12),
                   _buildMiniMetric(
-                      Icons.compare_arrows,
-                      '${reading.temperatureDifference > 0 ? '+' : ''}${reading.temperatureDifference.toStringAsFixed(2)}°',
-                      const Color(0xFF4CAF50)),
+                    Icons.ac_unit,
+                    '${reading.airTemperature.toStringAsFixed(2)}°',
+                    const Color(0xFF4ECDC4),
+                  ),
+                  const SizedBox(width: 12),
+                  _buildMiniMetric(
+                    Icons.water_drop,
+                    '${reading.humidity.toStringAsFixed(2)}%',
+                    const Color(0xFF90CAF9),
+                  ),
+                  const SizedBox(width: 12),
+                  _buildMiniMetric(
+                    Icons.compare_arrows,
+                    '${reading.temperatureDifference > 0 ? '+' : ''}${reading.temperatureDifference.toStringAsFixed(2)}°',
+                    const Color(0xFF4CAF50),
+                  ),
                 ],
               ),
             ),
@@ -980,8 +1005,11 @@ class _ActivityLogItem extends StatelessWidget {
 }
 
 Widget _buildSectionHeader(
-    BuildContext context, String title, bool isMobile,
-    {Widget? trailing}) {
+  BuildContext context,
+  String title,
+  bool isMobile, {
+  Widget? trailing,
+}) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
@@ -1043,10 +1071,9 @@ class _ErrorBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: scheme.onErrorContainer),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: scheme.onErrorContainer,
+                ),
               ),
             ),
           ],
@@ -1094,7 +1121,8 @@ void _showHistoryDialog(BuildContext context, EdasProvider provider) {
   } else {
     showDialog<void>(
       context: context,
-      builder: (BuildContext context) => _HistoryDialogContent(provider: provider),
+      builder: (BuildContext context) =>
+          _HistoryDialogContent(provider: provider),
     );
   }
 }
@@ -1115,7 +1143,6 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
   List<EdasSensorReading> allRows = <EdasSensorReading>[];
   List<EdasSensorReading> displayedRows = <EdasSensorReading>[];
   bool isLoadingHistory = false;
-  String selectedGh = 'ALL';
   bool _initialLoadDone = false;
   int _displayedCount = 20;
   static const int _pageSize = 20;
@@ -1128,7 +1155,6 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
     final DateTime todayStart = DateTime(now.year, now.month, now.day);
     startDate = todayStart;
     endDate = todayStart.add(const Duration(days: 1));
-    selectedGh = widget.provider.selectedGreenhouseId ?? 'ALL';
 
     WidgetsBinding.instance.addPostFrameCallback((_) => loadHistory());
   }
@@ -1143,13 +1169,13 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
     setState(() {
       isLoadingHistory = true;
     });
-    final List<EdasSensorReading> fetched =
-        await widget.provider.fetchHistoryForDateRange(
-      startDate: startDate,
-      endDate: endDate,
-      greenhouseId: selectedGh == 'ALL' ? null : selectedGh,
-      limit: 2000,
-    );
+    final List<EdasSensorReading> fetched = await widget.provider
+        .fetchHistoryForDateRange(
+          startDate: startDate,
+          endDate: endDate,
+          greenhouseId: null, // Always fetch all greenhouses
+          limit: 2000,
+        );
     if (mounted) {
       setState(() {
         allRows = fetched;
@@ -1172,10 +1198,6 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
 
   @override
   Widget build(BuildContext context) {
-    final List<String> ghOptions = <String>[
-      'ALL',
-      ...widget.provider.availableGreenhouseIds,
-    ];
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     final theme = Theme.of(context);
 
@@ -1200,16 +1222,6 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
               ),
               child: Column(
                 children: [
-                  _buildGreenhouseFilterBar(
-                    options: ghOptions,
-                    selected: selectedGh,
-                    onSelect: (val) {
-                      setState(() => selectedGh = val ?? 'ALL');
-                      loadHistory();
-                    },
-                    isMobile: isMobile,
-                  ),
-                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
@@ -1238,12 +1250,18 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                           onTap: () async {
                             final picked = await showDatePicker(
                               context: context,
-                              initialDate: endDate.subtract(const Duration(days: 1)),
+                              initialDate: endDate.subtract(
+                                const Duration(days: 1),
+                              ),
                               firstDate: startDate,
                               lastDate: DateTime.now(),
                             );
                             if (picked != null) {
-                              setState(() => endDate = picked.add(const Duration(days: 1)));
+                              setState(
+                                () => endDate = picked.add(
+                                  const Duration(days: 1),
+                                ),
+                              );
                               loadHistory();
                             }
                           },
@@ -1260,41 +1278,47 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
             child: isLoadingHistory && !_initialLoadDone
                 ? const Center(child: CircularProgressIndicator())
                 : allRows.isEmpty
-                    ? _buildEmptyState('No records found for this period.')
-                    : ListView.separated(
-                        controller: verticalController,
-                        padding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 16 : 24, vertical: 8),
-                        itemCount: displayedRows.length +
-                            (displayedRows.length < allRows.length ? 1 : 0),
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          if (index == displayedRows.length) {
-                            return Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 16),
-                              child: OutlinedButton(
-                                onPressed: _loadMore,
-                                style: OutlinedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 16),
-                                  side: BorderSide(
-                                      color: theme.colorScheme.primary
-                                          .withOpacity(0.3)),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16)),
+                ? _buildEmptyState('No records found for this period.')
+                : ListView.separated(
+                    controller: verticalController,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isMobile ? 16 : 24,
+                      vertical: 8,
+                    ),
+                    itemCount:
+                        displayedRows.length +
+                        (displayedRows.length < allRows.length ? 1 : 0),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      if (index == displayedRows.length) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: OutlinedButton(
+                            onPressed: _loadMore,
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.3,
                                 ),
-                                child: Text(
-                                    'Load More (${allRows.length - displayedRows.length} left)'),
                               ),
-                            );
-                          }
-                          return _DetailedHistoryCard(
-                              reading: displayedRows[index],
-                              isMobile: isMobile);
-                        },
-                      ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Text(
+                              'Load More (${allRows.length - displayedRows.length} left)',
+                            ),
+                          ),
+                        );
+                      }
+                      return _DetailedHistoryCard(
+                        reading: displayedRows[index],
+                        isMobile: isMobile,
+                      );
+                    },
+                  ),
           ),
         ],
       );
@@ -1331,13 +1355,17 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                   const Text(
                     'Full Activity Log',
                     style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.black,
+                    ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: Colors.black87),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.black87,
+                    ),
                     style: IconButton.styleFrom(
                       backgroundColor: Colors.grey.shade200,
                       padding: const EdgeInsets.all(8),
@@ -1354,8 +1382,11 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
     );
   }
 
-  Widget _buildDatePicker(
-      {required String label, required DateTime date, required VoidCallback onTap}) {
+  Widget _buildDatePicker({
+    required String label,
+    required DateTime date,
+    required VoidCallback onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1371,22 +1402,27 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
             Text(
               label,
               style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey.shade500,
-                  fontWeight: FontWeight.bold),
+                fontSize: 10,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 2),
             Row(
               children: [
-                Icon(Icons.calendar_today_rounded,
-                    size: 14, color: Colors.grey.shade700),
+                Icon(
+                  Icons.calendar_today_rounded,
+                  size: 14,
+                  color: Colors.grey.shade700,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   DateFormat('MMM d, yyyy').format(date),
                   style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
                 ),
               ],
             ),
@@ -1401,12 +1437,19 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.history_toggle_off_rounded,
-              size: 64, color: Colors.grey.shade300),
+          Icon(
+            Icons.history_toggle_off_rounded,
+            size: 64,
+            color: Colors.grey.shade300,
+          ),
           const SizedBox(height: 16),
-          Text(message,
-              style: TextStyle(
-                  color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+          Text(
+            message,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -1464,7 +1507,10 @@ class _DetailedHistoryCard extends StatelessWidget {
               ),
               if (reading.greenhouseId != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFC8E6C9).withOpacity(0.3),
                     borderRadius: BorderRadius.circular(8),
@@ -1490,28 +1536,32 @@ class _DetailedHistoryCard extends StatelessWidget {
             child: Row(
               children: [
                 _buildMetricItem(
-                    Icons.thermostat,
-                    '${reading.plantTemperature.toStringAsFixed(2)}°',
-                    'Plant Temp',
-                    const Color(0xFFFF6B6B)),
+                  Icons.thermostat,
+                  '${reading.plantTemperature.toStringAsFixed(2)}°',
+                  'Plant Temp',
+                  const Color(0xFFFF6B6B),
+                ),
                 const SizedBox(width: 16),
                 _buildMetricItem(
-                    Icons.ac_unit,
-                    '${reading.airTemperature.toStringAsFixed(2)}°',
-                    'Air Temp',
-                    const Color(0xFF4ECDC4)),
+                  Icons.ac_unit,
+                  '${reading.airTemperature.toStringAsFixed(2)}°',
+                  'Air Temp',
+                  const Color(0xFF4ECDC4),
+                ),
                 const SizedBox(width: 16),
                 _buildMetricItem(
-                    Icons.water_drop,
-                    '${reading.humidity.toStringAsFixed(2)}%',
-                    'Humidity',
-                    const Color(0xFF90CAF9)),
+                  Icons.water_drop,
+                  '${reading.humidity.toStringAsFixed(2)}%',
+                  'Humidity',
+                  const Color(0xFF90CAF9),
+                ),
                 const SizedBox(width: 16),
                 _buildMetricItem(
-                    Icons.compare_arrows,
-                    '${reading.temperatureDifference > 0 ? '+' : ''}${reading.temperatureDifference.toStringAsFixed(2)}°',
-                    'Temp Diff',
-                    const Color(0xFF4CAF50)),
+                  Icons.compare_arrows,
+                  '${reading.temperatureDifference > 0 ? '+' : ''}${reading.temperatureDifference.toStringAsFixed(2)}°',
+                  'Temp Diff',
+                  const Color(0xFF4CAF50),
+                ),
               ],
             ),
           ),
@@ -1521,15 +1571,20 @@ class _DetailedHistoryCard extends StatelessWidget {
   }
 
   Widget _buildMetricItem(
-      IconData icon, String value, String label, Color color) {
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8)),
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: Icon(icon, size: 14, color: color),
         ),
         const SizedBox(width: 8),
@@ -1559,53 +1614,3 @@ class _DetailedHistoryCard extends StatelessWidget {
     );
   }
 }
-
-Widget _buildGreenhouseFilterBar({
-  required List<String> options,
-  required String selected,
-  required ValueChanged<String?> onSelect,
-  required bool isMobile,
-}) {
-  return SizedBox(
-    height: 44,
-    child: ListView.separated(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      itemCount: options.length,
-      physics: const BouncingScrollPhysics(),
-      separatorBuilder: (context, index) => const SizedBox(width: 8),
-      itemBuilder: (context, index) {
-        final String id = options[index];
-        final bool isSelected = selected == id;
-
-        return ChoiceChip(
-          label: Text(
-            id == 'ALL' ? 'All Greenhouses' : id,
-            style: TextStyle(
-              color: isSelected ? const Color(0xFF1B5E20) : Colors.grey.shade700,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-          selected: isSelected,
-          onSelected: (bool selected) {
-            if (selected) onSelect(id);
-          },
-          selectedColor: const Color(0xFF4CAF50).withOpacity(0.15),
-          backgroundColor: Colors.white,
-          checkmarkColor: const Color(0xFF1B5E20),
-          showCheckmark: false,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(
-              color: isSelected ? const Color(0xFF4CAF50) : Colors.grey.shade300,
-              width: 1.5,
-            ),
-          ),
-        );
-      },
-    ),
-  );
-}
-

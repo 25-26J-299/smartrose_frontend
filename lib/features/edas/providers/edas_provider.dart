@@ -18,52 +18,23 @@ class EdasProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   Timer? _refreshTimer;
-  String? _selectedGreenhouseId; // null = not set; 'ALL' = aggregate
 
   List<EdasSensorReading> get readings => _readings;
   EdasSensorReading? get latest => _latest;
   EdasDiseasePrediction? get latestPrediction => _latestPrediction;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String? get selectedGreenhouseId => _selectedGreenhouseId;
 
-  /// Unique sorted greenhouse ids from loaded data
-  List<String> get availableGreenhouseIds {
-    final Set<String> ids = _readings
-        .map((EdasSensorReading r) => r.greenhouseId)
-        .whereType<String>()
-        .toSet();
-    final List<String> sorted = ids.toList()..sort();
-    return sorted;
-  }
-
-  /// Latest reading respecting selection. If "ALL" or unset, uses overall latest
+  /// Latest reading - always returns overall latest
   EdasSensorReading? get latestForSelected {
     if (_readings.isEmpty) return null;
-    if (_selectedGreenhouseId == 'ALL' || _selectedGreenhouseId == null) {
-      return _latest ?? _readings.first;
-    }
-    return _readings.firstWhere(
-      (EdasSensorReading r) => r.greenhouseId == _selectedGreenhouseId,
-      orElse: () => _latest ?? _readings.first,
-    );
+    return _latest ?? _readings.first;
   }
 
-  /// History respecting selection. "ALL" returns capped list for UI
+  /// History - returns capped list for UI
   List<EdasSensorReading> get readingsForSelected {
     if (_readings.isEmpty) return <EdasSensorReading>[];
-    if (_selectedGreenhouseId == 'ALL' || _selectedGreenhouseId == null) {
-      return _readings.take(50).toList();
-    }
-    return _readings
-        .where((EdasSensorReading r) => r.greenhouseId == _selectedGreenhouseId)
-        .take(50)
-        .toList();
-  }
-
-  void setSelectedGreenhouse(String? id) {
-    _selectedGreenhouseId = (id == null || id.isEmpty) ? 'ALL' : id;
-    unawaited(refresh(force: true));
+    return _readings.take(50).toList();
   }
 
   double? get averagePlantTemperature {
@@ -122,13 +93,10 @@ class EdasProvider extends ChangeNotifier {
     if (!force) notifyListeners();
 
     try {
-      final String? ghId =
-          _selectedGreenhouseId == 'ALL' ? null : _selectedGreenhouseId;
-      
       // PRIORITY 1: Fetch the absolute latest sensor data record from MongoDB
       // This ensures summary cards always show the newest record
       final EdasSensorReading? latestSensorData = await _api.fetchLatestSensorData(
-        greenhouseId: ghId,
+        greenhouseId: null, // Always fetch all greenhouses
       );
       
       if (latestSensorData != null) {
@@ -139,7 +107,7 @@ class EdasProvider extends ChangeNotifier {
 
       // PRIORITY 2: Fetch prediction data (can be done in parallel or after)
       final Map<String, dynamic>? latestWithPrediction =
-          await _api.fetchLatestWithPrediction(greenhouseId: ghId);
+          await _api.fetchLatestWithPrediction(greenhouseId: null); // Always fetch all greenhouses
 
       if (latestWithPrediction != null) {
         // Update prediction from the response
@@ -170,7 +138,7 @@ class EdasProvider extends ChangeNotifier {
 
       // PRIORITY 3: Fetch history for trends (this doesn't affect summary cards)
       final List<EdasSensorReading> history = await _api.fetchHistory(
-          greenhouseId: ghId, limit: historyLimit);
+          greenhouseId: null, limit: historyLimit); // Always fetch all greenhouses
       if (history.isNotEmpty) {
         // Create a new list to ensure Flutter detects the change
         final List<EdasSensorReading> newReadings = List<EdasSensorReading>.from(history);
@@ -195,8 +163,6 @@ class EdasProvider extends ChangeNotifier {
           _errorMessage = 'No sensor readings available yet.';
         }
       }
-
-      _selectedGreenhouseId ??= 'ALL';
     } catch (err) {
       debugPrint('EdasProvider.refresh error: $err');
       _errorMessage = 'Unable to load sensor data. Please try again.';
