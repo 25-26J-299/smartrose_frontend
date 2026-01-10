@@ -57,14 +57,6 @@ class InmLatestCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Spacer(),
-              Text(
-                reading.timeAgo,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
-                  fontSize: 11,
-                ),
-              ),
             ],
           ),
         ),
@@ -197,31 +189,35 @@ class _CompactSensorCard extends StatelessWidget {
           ),
           
           // Value and unit
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                  fontSize: 28,
-                ),
-              ),
-              if (unit.isNotEmpty) ...[
-                const SizedBox(width: 4),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 5),
-                  child: Text(
-                    unit,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: color.withOpacity(0.7),
-                      fontSize: 12,
-                    ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.bottomLeft,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    fontSize: 28,
                   ),
                 ),
+                if (unit.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: Text(
+                      unit,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: color.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ],
       ),
