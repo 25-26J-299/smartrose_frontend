@@ -23,7 +23,7 @@ This workspace contains:
 
 - **Architecture diagram **:
 
-![SMARTROSE System Architecture](https://mysliit-my.sharepoint.com/:i:/g/personal/it22326522_my_sliit_lk/IQBiADF5Sib5T6ZpUIdtIAokAeALnCUDy57DtLRrc1P23lo?e=3xmeR7)
+https://mysliit-my.sharepoint.com/:i:/g/personal/it22326522_my_sliit_lk/IQBiADF5Sib5T6ZpUIdtIAokAeALnCUDy57DtLRrc1P23lo?e=3xmeR7
 
 - **Text-based diagram **:
 
