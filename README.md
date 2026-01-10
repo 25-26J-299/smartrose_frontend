@@ -177,6 +177,14 @@ flutter run
 ```
 
 ---
-## GitHub Repository Link
+## GitHub organization link: https://github.com/25-26J-299
 
-https://github.com/25-26J-299
+## common repos 
+  - smartrose_backend GitHub repo link: https://github.com/25-26J-299/smartrose_backend.git
+  - smartrose_frontend GitHub repo link: https://github.com/25-26J-299/smartrose_frontend.git
+
+## Individual component repos 
+  - smartrose-inm : https://github.com/25-26J-299/smartrose-inm.git
+  - smartrose-eosm : https://github.com/25-26J-299/smartrose-eosm.git
+  - smartrose-edas : https://github.com/25-26J-299/smartrose-edas.git
+  - smartrose-fm : https://github.com/25-26J-299/smartrose-fm.git
