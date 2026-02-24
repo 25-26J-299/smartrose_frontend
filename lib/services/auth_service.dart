@@ -20,9 +20,9 @@ class AuthService {
     http.Client? client,
     FlutterSecureStorage? storage,
     String? baseUrl,
-  }) : _client = client ?? http.Client(),
-       _storage = storage ?? const FlutterSecureStorage(),
-       _baseUrl = baseUrl ?? getApiBaseUrl();
+  })  : _client = client ?? http.Client(),
+        _storage = storage ?? const FlutterSecureStorage(),
+        _baseUrl = baseUrl ?? getApiBaseUrl();
 
   final http.Client _client;
   final FlutterSecureStorage _storage;
@@ -31,18 +31,25 @@ class AuthService {
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
+  /// Register with full_name, email, phone, password, role (farmer|florist).
+  /// Returns AuthResult only if backend returns token (legacy); otherwise returns null
+  /// and caller should show "pending approval" message.
   Future<AuthResult?> register(
-    String name,
+    String fullName,
     String email,
+    String phone,
     String password,
+    String role,
   ) async {
     final http.Response response = await _client.post(
       _uri('/auth/register'),
       headers: <String, String>{'Content-Type': 'application/json'},
       body: jsonEncode(<String, dynamic>{
-        'name': name,
+        'full_name': fullName,
         'email': email,
+        'phone': phone,
         'password': password,
+        'role': role,
       }),
     );
 
@@ -50,11 +57,17 @@ class AuthService {
       final Map<String, dynamic> body =
           jsonDecode(response.body) as Map<String, dynamic>;
       final User user = User.fromJson(body['user'] as Map<String, dynamic>);
-      final String token = body['access_token'] as String;
-      await persistToken(token);
-      return AuthResult(user: user, token: token);
+      final String? token = body['access_token'] as String?;
+      if (token != null && token.isNotEmpty) {
+        await persistToken(token);
+        return AuthResult(user: user, token: token);
+      }
+      // New flow: no token, user must be approved
+      return null;
     }
-    return null;
+    final Map<String, dynamic>? err =
+        jsonDecode(response.body) as Map<String, dynamic>?;
+    throw Exception(err?['detail'] ?? 'Registration failed');
   }
 
   Future<AuthResult?> login(String email, String password) async {
@@ -82,6 +95,12 @@ class AuthService {
         final String token = body['access_token'] as String;
         await persistToken(token);
         return AuthResult(user: user, token: token);
+      }
+
+      if (response.statusCode == 403) {
+        final Map<String, dynamic>? err =
+            jsonDecode(response.body) as Map<String, dynamic>?;
+        throw Exception(err?['detail'] ?? 'Account pending approval');
       }
 
       debugPrint('Login failed with status: ${response.statusCode}');

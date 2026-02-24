@@ -17,6 +17,7 @@ class AuthState extends ChangeNotifier {
 
   User? get user => _user;
   List<String> get roles => _user?.roles ?? <String>[];
+  String? get role => _user?.role;
   bool get isAuthenticated => _token != null;
   bool get isInitializing => _initializing;
   String? get errorMessage => _errorMessage;
@@ -32,14 +33,12 @@ class AuthState extends ChangeNotifier {
             _token = null;
           }
         } catch (e) {
-          // If profile fetch fails, clear token and continue
           debugPrint('Error fetching profile: $e');
           await _authService.clearToken();
           _token = null;
         }
       }
     } catch (e) {
-      // If token loading fails, continue without authentication
       debugPrint('Error restoring session: $e');
       _token = null;
     } finally {
@@ -48,20 +47,39 @@ class AuthState extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String name, String email, String password) async {
+  /// Register with full_name, email, phone, password, role (farmer|florist).
+  /// Returns true if registration succeeded. With new backend, no token is returned
+  /// so user must be approved before login.
+  Future<bool> register(
+    String fullName,
+    String email,
+    String phone,
+    String password,
+    String role,
+  ) async {
     _errorMessage = null;
-    final AuthResult? result =
-        await _authService.register(name, email, password);
-    if (result == null) {
-      _errorMessage = 'Registration failed. Please try again.';
+    try {
+      final AuthResult? result = await _authService.register(
+        fullName,
+        email,
+        phone,
+        password,
+        role,
+      );
+      if (result != null) {
+        _user = result.user;
+        _token = result.token;
+        notifyListeners();
+        return true;
+      }
+      // New flow: registration succeeded but no token (pending approval)
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
       return false;
     }
-
-    _user = result.user;
-    _token = result.token;
-    notifyListeners();
-    return true;
   }
 
   Future<bool> login(String email, String password) async {
@@ -79,7 +97,7 @@ class AuthState extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('Login error in AuthState: $e');
-      _errorMessage = 'Network error. Please check your connection and try again.';
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
       notifyListeners();
       return false;
     }
@@ -93,8 +111,10 @@ class AuthState extends ChangeNotifier {
       return false;
     }
 
-    final AuthResult? result =
-        await _authService.updateRoles(newRoles, _token!);
+    final AuthResult? result = await _authService.updateRoles(
+      newRoles,
+      _token!,
+    );
     if (result == null) {
       _errorMessage = 'Failed to update roles.';
       notifyListeners();
@@ -107,14 +127,24 @@ class AuthState extends ChangeNotifier {
     return true;
   }
 
-  void updateProfileLocal({String? name, String? email}) {
+  void updateProfileLocal({
+    String? fullName,
+    String? name,
+    String? email,
+    String? phone,
+  }) {
     if (_user == null) return;
+    final newFullName = fullName ?? name;
     _user = User(
       id: _user!.id,
-      name: name?.trim().isNotEmpty == true ? name!.trim() : _user!.name,
+      fullName: newFullName?.trim().isNotEmpty == true ? newFullName!.trim() : _user!.fullName,
       email: email?.trim().isNotEmpty == true ? email!.trim() : _user!.email,
-      roles: _user!.roles,
+      phone: phone ?? _user!.phone,
+      role: _user!.role,
+      status: _user!.status,
       createdAt: _user!.createdAt,
+      lastLogin: _user!.lastLogin,
+      isActive: _user!.isActive,
     );
     notifyListeners();
   }
@@ -126,5 +156,3 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 }
-
-
