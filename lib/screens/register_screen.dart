@@ -15,17 +15,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  String _selectedRole = 'farmer';
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -38,6 +41,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (value.trim().isEmpty) {
       return 'Please enter a valid full name';
     }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
     return null;
   }
 
@@ -94,7 +101,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final bool success = await authState.register(
       _fullNameController.text.trim(),
       _emailController.text.trim(),
+      _phoneController.text.trim(),
       _passwordController.text,
+      _selectedRole,
     );
 
     if (mounted) {
@@ -104,13 +113,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Account created! Select your roles.'),
-            backgroundColor: Theme.of(context).colorScheme.primary,
+          const SnackBar(
+            content: Text(
+              'Registration successful. Your account is pending approval.',
+            ),
+            backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );
-        Navigator.of(context).pushReplacementNamed(AppRoutes.roleSelection);
+        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
       } else {
         final String message =
             authState.errorMessage ?? 'Registration failed. Please try again.';
@@ -290,6 +301,85 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           validator: _validateEmail,
                           autovalidateMode: AutovalidateMode.onUserInteraction,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Phone Field
+                        TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                          decoration: InputDecoration(
+                            labelText: 'Phone',
+                            prefixIcon: Icon(
+                              Icons.phone_outlined,
+                              color: colorScheme.primary,
+                            ),
+                            filled: true,
+                            fillColor: softGreen.withOpacity(0.3),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: colorScheme.primary.withOpacity(0.3),
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: colorScheme.primary.withOpacity(0.3),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: colorScheme.primary,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          validator: _validatePhone,
+                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Role Selection
+                        Text(
+                          'Select Role',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: colorScheme.onSurface,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text('Farmer'),
+                                value: 'farmer',
+                                groupValue: _selectedRole,
+                                onChanged: (String? value) {
+                                  setState(() {
+                                    _selectedRole = value ?? 'farmer';
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                            Expanded(
+                              child: RadioListTile<String>(
+                                title: const Text('Florist'),
+                                value: 'florist',
+                                groupValue: _selectedRole,
+                                onChanged: (String? value) {
+                                  setState(() {
+                                    _selectedRole = value ?? 'farmer';
+                                  });
+                                },
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
 
