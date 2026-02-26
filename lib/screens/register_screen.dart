@@ -19,10 +19,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  final TextEditingController _locationNameController = TextEditingController();
+  final TextEditingController _locationAddressController =
+      TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   String _selectedRole = 'farmer';
+  String _selectedLocationType = 'greenhouse';
+  int _currentStep = 0;
 
   @override
   void dispose() {
@@ -31,6 +36,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _locationNameController.dispose();
+    _locationAddressController.dispose();
     super.dispose();
   }
 
@@ -44,9 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  String? _validatePhone(String? value) {
-    return null;
-  }
+  String? _validatePhone(String? value) => null;
 
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -81,7 +86,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
-  Future<void> _handleRegister() async {
+  String? _validateLocationName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter location name';
+    }
+    return null;
+  }
+
+  String? _validateLocationAddress(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter address';
+    }
+    return null;
+  }
+
+  void _goToNextStep() {
+    if (_currentStep == 0) {
+      final valid = _formKey.currentState?.validate() ?? false;
+      if (valid) {
+        setState(() => _currentStep = 1);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Please fix the errors in the form'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _goToPreviousStep() {
+    if (_currentStep == 1) {
+      setState(() => _currentStep = 0);
+    }
+  }
+
+  Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -93,9 +135,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     final authState = context.read<AuthState>();
     final bool success = await authState.register(
@@ -104,18 +144,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _phoneController.text.trim(),
       _passwordController.text,
       _selectedRole,
+      locationName: _locationNameController.text.trim(),
+      locationType: _selectedLocationType,
+      locationAddress: _locationAddressController.text.trim(),
     );
 
     if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
 
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Registration successful. Your account is pending approval.',
+              'Registration successful. Your account and location are pending approval.',
             ),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
@@ -136,9 +177,279 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  Widget _buildStepIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: <Widget>[
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _currentStep >= 0
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade300,
+          ),
+          child: Center(
+            child: Text(
+              '1',
+              style: TextStyle(
+                color: _currentStep >= 0 ? Colors.white : Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+        Container(
+          width: 40,
+          height: 2,
+          color: _currentStep >= 1
+              ? Theme.of(context).colorScheme.primary
+              : Colors.grey.shade300,
+        ),
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _currentStep >= 1
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey.shade300,
+          ),
+          child: Center(
+            child: Text(
+              '2',
+              style: TextStyle(
+                color: _currentStep >= 1 ? Colors.white : Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep1() {
+    final colorScheme = Theme.of(context).colorScheme;
+    const Color softGreen = Color(0xFFE8F5E9);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Your Details',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.primary,
+              ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _fullNameController,
+          keyboardType: TextInputType.name,
+          textInputAction: TextInputAction.next,
+          decoration: _inputDecoration('Full Name', Icons.person_outlined, softGreen),
+          validator: _validateFullName,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _emailController,
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+          decoration: _inputDecoration('Email', Icons.email_outlined, softGreen),
+          validator: _validateEmail,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _phoneController,
+          keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.next,
+          decoration: _inputDecoration('Phone', Icons.phone_outlined, softGreen),
+          validator: _validatePhone,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Select Role',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('Farmer'),
+                value: 'farmer',
+                groupValue: _selectedRole,
+                onChanged: (String? value) {
+                  setState(() => _selectedRole = value ?? 'farmer');
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('Florist'),
+                value: 'florist',
+                groupValue: _selectedRole,
+                onChanged: (String? value) {
+                  setState(() => _selectedRole = value ?? 'farmer');
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _passwordController,
+          obscureText: _obscurePassword,
+          textInputAction: TextInputAction.next,
+          onChanged: (_) {
+            if (_confirmPasswordController.text.isNotEmpty) {
+              _formKey.currentState?.validate();
+            }
+          },
+          decoration: _inputDecoration('Password', Icons.lock_outlined, softGreen)
+              .copyWith(
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: colorScheme.primary,
+              ),
+              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            ),
+          ),
+          validator: _validatePassword,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _confirmPasswordController,
+          obscureText: _obscureConfirmPassword,
+          textInputAction: TextInputAction.done,
+          decoration: _inputDecoration('Confirm Password', Icons.lock_outlined, softGreen)
+              .copyWith(
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                color: colorScheme.primary,
+              ),
+              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+            ),
+          ),
+          validator: _validateConfirmPassword,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStep2() {
+    final colorScheme = Theme.of(context).colorScheme;
+    const Color softGreen = Color(0xFFE8F5E9);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Location Details',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.primary,
+              ),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _locationNameController,
+          keyboardType: TextInputType.text,
+          textInputAction: TextInputAction.next,
+          decoration: _inputDecoration('Location Name', Icons.place_outlined, softGreen),
+          validator: _validateLocationName,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Location Type',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: colorScheme.onSurface,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('Greenhouse'),
+                value: 'greenhouse',
+                groupValue: _selectedLocationType,
+                onChanged: (String? value) {
+                  setState(() => _selectedLocationType = value ?? 'greenhouse');
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+            Expanded(
+              child: RadioListTile<String>(
+                title: const Text('Flower Shop'),
+                value: 'flower_shop',
+                groupValue: _selectedLocationType,
+                onChanged: (String? value) {
+                  setState(() => _selectedLocationType = value ?? 'greenhouse');
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: _locationAddressController,
+          keyboardType: TextInputType.streetAddress,
+          textInputAction: TextInputAction.done,
+          maxLines: 2,
+          decoration: _inputDecoration('Address', Icons.location_on_outlined, softGreen),
+          validator: _validateLocationAddress,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon, Color softGreen) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: colorScheme.primary),
+      filled: true,
+      fillColor: softGreen.withOpacity(0.3),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colorScheme.primary.withOpacity(0.3)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colorScheme.primary.withOpacity(0.3)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: colorScheme.primary, width: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
     const Color softGreen = Color(0xFFE8F5E9);
     const Color lightGreen = Color(0xFFC8E6C9);
 
@@ -173,7 +484,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        // Logo
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
@@ -187,346 +497,97 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-
-                        // SmartRose Logo Placeholder
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(
-                            'SmartRose',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colorScheme.primary,
-                                  letterSpacing: 1.2,
-                                ),
-                          ),
+                        Text(
+                          'SmartRose',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: colorScheme.primary,
+                                letterSpacing: 1.2,
+                              ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Create Account',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.primary,
                               ),
                         ),
-                        const SizedBox(height: 4),
                         Text(
-                          'Sign up to get started',
+                          _currentStep == 0
+                              ? 'Step 1: Your details'
+                              : 'Step 2: Location details',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: 32),
-
-                        // Full Name Field
-                        TextFormField(
-                          controller: _fullNameController,
-                          keyboardType: TextInputType.name,
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: 'Full Name',
-                            prefixIcon: Icon(
-                              Icons.person_outlined,
-                              color: colorScheme.primary,
-                            ),
-                            filled: true,
-                            fillColor: softGreen.withOpacity(0.3),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
                               ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          validator: _validateFullName,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
                         ),
                         const SizedBox(height: 16),
-
-                        // Email Field
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            prefixIcon: Icon(
-                              Icons.email_outlined,
-                              color: colorScheme.primary,
-                            ),
-                            filled: true,
-                            fillColor: softGreen.withOpacity(0.3),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          validator: _validateEmail,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
+                        _buildStepIndicator(),
+                        const SizedBox(height: 24),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: _currentStep == 0
+                              ? KeyedSubtree(key: const ValueKey<int>(0), child: _buildStep1())
+                              : KeyedSubtree(key: const ValueKey<int>(1), child: _buildStep2()),
                         ),
-                        const SizedBox(height: 16),
-
-                        // Phone Field
-                        TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          textInputAction: TextInputAction.next,
-                          decoration: InputDecoration(
-                            labelText: 'Phone',
-                            prefixIcon: Icon(
-                              Icons.phone_outlined,
-                              color: colorScheme.primary,
-                            ),
-                            filled: true,
-                            fillColor: softGreen.withOpacity(0.3),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          validator: _validatePhone,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Role Selection
-                        Text(
-                          'Select Role',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: colorScheme.onSurface,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 24),
                         Row(
                           children: <Widget>[
-                            Expanded(
-                              child: RadioListTile<String>(
-                                title: const Text('Farmer'),
-                                value: 'farmer',
-                                groupValue: _selectedRole,
-                                onChanged: (String? value) {
-                                  setState(() {
-                                    _selectedRole = value ?? 'farmer';
-                                  });
-                                },
-                                contentPadding: EdgeInsets.zero,
+                            if (_currentStep == 1)
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: _isLoading ? null : _goToPreviousStep,
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                  child: const Text('Back'),
+                                ),
                               ),
-                            ),
+                            if (_currentStep == 1) const SizedBox(width: 16),
                             Expanded(
-                              child: RadioListTile<String>(
-                                title: const Text('Florist'),
-                                value: 'florist',
-                                groupValue: _selectedRole,
-                                onChanged: (String? value) {
-                                  setState(() {
-                                    _selectedRole = value ?? 'farmer';
-                                  });
-                                },
-                                contentPadding: EdgeInsets.zero,
+                              flex: _currentStep == 0 ? 1 : 1,
+                              child: FilledButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : (_currentStep == 0 ? _goToNextStep : _handleSubmit),
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  backgroundColor: colorScheme.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  elevation: 2,
+                                ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        _currentStep == 0 ? 'Next' : 'Submit',
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 16),
-
-                        // Password Field
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.next,
-                          onChanged: (_) {
-                            // Re-validate confirm password when password changes
-                            if (_confirmPasswordController.text.isNotEmpty) {
-                              _formKey.currentState?.validate();
-                            }
-                          },
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: Icon(
-                              Icons.lock_outlined,
-                              color: colorScheme.primary,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: colorScheme.primary,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
-                            ),
-                            filled: true,
-                            fillColor: softGreen.withOpacity(0.3),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          validator: _validatePassword,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Confirm Password Field
-                        TextFormField(
-                          controller: _confirmPasswordController,
-                          obscureText: _obscureConfirmPassword,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _handleRegister(),
-                          decoration: InputDecoration(
-                            labelText: 'Confirm Password',
-                            prefixIcon: Icon(
-                              Icons.lock_outlined,
-                              color: colorScheme.primary,
-                            ),
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureConfirmPassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: colorScheme.primary,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureConfirmPassword =
-                                      !_obscureConfirmPassword;
-                                });
-                              },
-                            ),
-                            filled: true,
-                            fillColor: softGreen.withOpacity(0.3),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary.withOpacity(0.3),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide(
-                                color: colorScheme.primary,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          validator: _validateConfirmPassword,
-                          autovalidateMode: AutovalidateMode.onUserInteraction,
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Register Button
-                        FilledButton(
-                          onPressed: _isLoading ? null : _handleRegister,
-                          style: FilledButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            backgroundColor: colorScheme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 2,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
-                                    ),
-                                  ),
-                                )
-                              : const Text(
-                                  'Register',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Login Link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: <Widget>[
@@ -537,16 +598,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             TextButton(
                               onPressed: _isLoading
                                   ? null
-                                  : () {
-                                      Navigator.of(
-                                        context,
-                                      ).pushReplacementNamed(AppRoutes.login);
-                                    },
+                                  : () => Navigator.of(context).pushReplacementNamed(AppRoutes.login),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               ),
                               child: Text(
                                 'Login',
