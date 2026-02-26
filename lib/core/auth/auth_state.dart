@@ -47,7 +47,7 @@ class AuthState extends ChangeNotifier {
     }
   }
 
-  /// Register with full_name, email, phone, password, role (farmer|florist).
+  /// Register with full_name, email, phone, password, role (farmer|florist), and location.
   /// Returns true if registration succeeded. With new backend, no token is returned
   /// so user must be approved before login.
   Future<bool> register(
@@ -55,8 +55,11 @@ class AuthState extends ChangeNotifier {
     String email,
     String phone,
     String password,
-    String role,
-  ) async {
+    String role, {
+    required String locationName,
+    required String locationType,
+    required String locationAddress,
+  }) async {
     _errorMessage = null;
     try {
       final AuthResult? result = await _authService.register(
@@ -65,6 +68,9 @@ class AuthState extends ChangeNotifier {
         phone,
         password,
         role,
+        locationName: locationName,
+        locationType: locationType,
+        locationAddress: locationAddress,
       );
       if (result != null) {
         _user = result.user;
