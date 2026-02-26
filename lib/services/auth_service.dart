@@ -31,7 +31,7 @@ class AuthService {
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
-  /// Register with full_name, email, phone, password, role (farmer|florist).
+  /// Register with full_name, email, phone, password, role (farmer|florist), and location.
   /// Returns AuthResult only if backend returns token (legacy); otherwise returns null
   /// and caller should show "pending approval" message.
   Future<AuthResult?> register(
@@ -39,8 +39,11 @@ class AuthService {
     String email,
     String phone,
     String password,
-    String role,
-  ) async {
+    String role, {
+    required String locationName,
+    required String locationType,
+    required String locationAddress,
+  }) async {
     final http.Response response = await _client.post(
       _uri('/auth/register'),
       headers: <String, String>{'Content-Type': 'application/json'},
@@ -50,6 +53,11 @@ class AuthService {
         'phone': phone,
         'password': password,
         'role': role,
+        'location': <String, dynamic>{
+          'name': locationName,
+          'type': locationType,
+          'address': locationAddress,
+        },
       }),
     );
 
