@@ -85,8 +85,6 @@ class FreshnessApiService {
             options: Options(
               // Explicitly disable caching
               extra: <String, dynamic>{'disableCache': true},
-              // Force fresh request
-              validateStatus: (status) => status! < 500,
             ),
           );
 
@@ -236,8 +234,96 @@ class FreshnessApiService {
     return sampleReading;
   }
 
+  /// Fetches the logged-in user's FM devices grouped by location.
+  ///
+  /// [token] - The user's Bearer token from AuthState.
+  /// Returns a list of location objects each containing a list of FM devices.
+  Future<List<FmLocationWithDevices>> getMyFmDevices(String token) async {
+    try {
+      final Response<Map<String, dynamic>> response = await _dio
+          .get<Map<String, dynamic>>(
+            '/auth/my-fm-devices',
+            options: Options(headers: {'Authorization': 'Bearer $token'}),
+          );
+
+      if (response.data == null) {
+        return [];
+      }
+
+      final rawLocations = response.data!['locations'] as List<dynamic>? ?? [];
+      return rawLocations
+          .map((e) => FmLocationWithDevices.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
   /// Disposes the Dio instance and cancels any pending requests.
   void dispose() {
     _dio.close(force: true);
   }
+}
+
+/// A location with its list of FM devices.
+class FmLocationWithDevices {
+  const FmLocationWithDevices({
+    required this.locationId,
+    required this.locationName,
+    required this.locationType,
+    required this.devices,
+  });
+
+  final String locationId;
+  final String locationName;
+  final String locationType;
+  final List<FmDevice> devices;
+
+  factory FmLocationWithDevices.fromJson(Map<String, dynamic> json) {
+    final loc = json['location'] as Map<String, dynamic>? ?? {};
+    final rawDevices = json['devices'] as List<dynamic>? ?? [];
+    return FmLocationWithDevices(
+      locationId: loc['_id'] as String? ?? '',
+      locationName: loc['name'] as String? ?? '',
+      locationType: loc['type'] as String? ?? '',
+      devices: rawDevices
+          .map((d) => FmDevice.fromJson(d as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+/// A single FM device.
+class FmDevice {
+  const FmDevice({
+    required this.id,
+    required this.name,
+    required this.deviceSerialNumber,
+    required this.locationId,
+    required this.locationName,
+  });
+
+  final String id;
+  final String name;
+  final String deviceSerialNumber;
+  final String locationId;
+  final String locationName;
+
+  factory FmDevice.fromJson(Map<String, dynamic> json) {
+    return FmDevice(
+      id: json['_id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      deviceSerialNumber: json['device_serial_number'] as String? ?? '',
+      locationId: json['location_id'] as String? ?? '',
+      locationName: '',
+    );
+  }
+
+  FmDevice copyWithLocationName(String name) => FmDevice(
+    id: id,
+    name: this.name,
+    deviceSerialNumber: deviceSerialNumber,
+    locationId: locationId,
+    locationName: name,
+  );
 }

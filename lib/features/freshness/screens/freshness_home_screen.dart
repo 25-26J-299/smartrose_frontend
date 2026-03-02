@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/auth/auth_state.dart';
 import '../../../shared/models/prediction_model.dart';
 import '../../../shared/models/reading_model.dart';
 import '../../../shared/services/freshness_api_service.dart';
@@ -17,25 +19,28 @@ class FreshnessHomeScreen extends StatefulWidget {
 class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
     with WidgetsBindingObserver {
   final FreshnessApiService _apiService = FreshnessApiService();
-  String _currentDeviceId = 'device_001';
 
+  // Device list
+  bool _loadingDevices = true;
+  String? _devicesError;
+  List<FmLocationWithDevices> _locations = [];
+  FmDevice? _selectedDevice;
+
+  // Sensor data
+  bool _loadingData = false;
+  String? _dataError;
   ReadingModel? _latestReading;
   PredictionModel? _prediction;
-  bool _isLoading = false;
-  String? _errorMessage;
 
   Timer? _autoRefreshTimer;
   bool _isScreenVisible = true;
-
-  // Auto-refresh interval (30 seconds)
   static const Duration _refreshInterval = Duration(seconds: 30);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _loadFreshnessData(forceRefresh: true);
-    _startAutoRefresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDevices());
   }
 
   @override
@@ -49,23 +54,22 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Pause updates when app is in background, resume when in foreground
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       _isScreenVisible = false;
       _stopAutoRefresh();
     } else if (state == AppLifecycleState.resumed) {
       _isScreenVisible = true;
-      _loadFreshnessData(forceRefresh: true);
+      if (_selectedDevice != null) _loadSensorData(silent: true);
       _startAutoRefresh();
     }
   }
 
   void _startAutoRefresh() {
-    _stopAutoRefresh(); // Cancel any existing timer
+    _stopAutoRefresh();
     _autoRefreshTimer = Timer.periodic(_refreshInterval, (_) {
-      if (_isScreenVisible && mounted && !_isLoading) {
-        _loadFreshnessData(forceRefresh: true, silent: true);
+      if (_isScreenVisible && mounted && !_loadingData && _selectedDevice != null) {
+        _loadSensorData(silent: true);
       }
     });
   }
@@ -75,92 +79,128 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
     _autoRefreshTimer = null;
   }
 
-  Future<void> _loadFreshnessData({
-    bool forceRefresh = true,
-    bool silent = false,
-  }) async {
+  Future<void> _loadDevices() async {
+    final token = context.read<AuthState>().token;
+    if (token == null) {
+      setState(() {
+        _loadingDevices = false;
+        _devicesError = 'Not authenticated. Please log in again.';
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingDevices = true;
+      _devicesError = null;
+    });
+
+    try {
+      final locations = await _apiService.getMyFmDevices(token);
+      if (!mounted) return;
+      setState(() {
+        _locations = locations;
+        _loadingDevices = false;
+      });
+
+      // Auto-select first FM device
+      for (final loc in locations) {
+        if (loc.devices.isNotEmpty) {
+          final device = loc.devices.first.copyWithLocationName(loc.locationName);
+          setState(() => _selectedDevice = device);
+          await _loadSensorData();
+          _startAutoRefresh();
+          break;
+        }
+      }
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingDevices = false;
+        _devicesError = e.error?.toString() ?? 'Failed to load devices';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingDevices = false;
+        _devicesError = 'Unexpected error: ${e.toString()}';
+      });
+    }
+  }
+
+  Future<void> _loadSensorData({bool silent = false}) async {
+    final device = _selectedDevice;
+    if (device == null) return;
+
     if (!silent) {
       setState(() {
-        _isLoading = true;
-        _errorMessage = null;
+        _loadingData = true;
+        _dataError = null;
       });
     }
 
     try {
-      // Fetch latest reading from database (sorted by timestamp descending)
-      // and get ML model prediction in a single call
       final data = await _apiService.getLatestWithPrediction(
-        _currentDeviceId,
-        forceRefresh: forceRefresh,
+        device.deviceSerialNumber,
+        forceRefresh: true,
       );
+      if (!mounted) return;
 
-      // Parse the response
-      final reading = ReadingModel.fromJson(
-        data['reading'] as Map<String, dynamic>,
-      );
-      final prediction = PredictionModel.fromJson(
-        data['prediction'] as Map<String, dynamic>,
-      );
-
-      // Only update state if data actually changed (for silent updates)
-      final bool hasChanged = silent
-          ? (_latestReading?.timestamp != reading.timestamp ||
-                _prediction?.freshnessScore != prediction.freshnessScore)
-          : true;
-
-      if (hasChanged) {
-        setState(() {
-          _latestReading = reading;
-          _prediction = prediction;
-          if (!silent) {
-            _isLoading = false;
-          }
-        });
-      } else if (!silent) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (data['reading'] == null || data['prediction'] == null) {
+        throw Exception('No sensor data found for this device');
       }
+
+      final reading = ReadingModel.fromJson(data['reading'] as Map<String, dynamic>);
+      final prediction = PredictionModel.fromJson(data['prediction'] as Map<String, dynamic>);
+
+      setState(() {
+        _latestReading = reading;
+        _prediction = prediction;
+        if (!silent) _loadingData = false;
+      });
     } on DioException catch (e) {
-      // Only show errors for non-silent updates
-      if (!silent) {
-        String errorMsg =
-            e.error?.toString() ?? 'Failed to load freshness data';
-
-        // Provide more helpful error messages
-        final statusCode = e.response?.statusCode;
-        if (statusCode == 404 ||
-            errorMsg.contains('404') ||
-            errorMsg.toLowerCase().contains('not found')) {
-          errorMsg =
-              'No data found for device "$_currentDeviceId". '
-              'Please ensure the device exists and has sensor readings.';
-        } else if (errorMsg.contains('Cannot connect') ||
-            errorMsg.contains('ERR_NAME_NOT_RESOLVED') ||
-            errorMsg.contains('Connection refused')) {
-          errorMsg =
-              'Cannot connect to backend server at http://localhost:8000. '
-              'Please ensure the backend is running.';
+      if (!silent && mounted) {
+        String msg = e.error?.toString() ?? 'Failed to load sensor data';
+        if (e.response?.statusCode == 404 || msg.toLowerCase().contains('not found')) {
+          msg = 'No sensor data yet for "${device.name}".\n';
         }
-
         setState(() {
-          _errorMessage = errorMsg;
-          _isLoading = false;
+          _dataError = msg;
+          _loadingData = false;
         });
       }
     } catch (e) {
-      if (!silent) {
+      if (!silent && mounted) {
+        // Hide technical error details like type cast errors
+        String userFriendlyMsg = 'Failed to load data for "${device.name}"';
+        if (e.toString().contains('Null') || e.toString().contains('subtype')) {
+          userFriendlyMsg = 'No sensor data yet for "${device.name}".\n'
+              'Make sure the ESP32 is powered on and sending data.';
+        }
         setState(() {
-          _errorMessage = 'Unexpected error: ${e.toString()}';
-          _isLoading = false;
+          _dataError = userFriendlyMsg;
+          _loadingData = false;
         });
       }
     }
   }
 
+  void _onDeviceSelected(FmDevice device) {
+    if (_selectedDevice?.id == device.id) return;
+    setState(() {
+      _selectedDevice = device;
+      _latestReading = null;
+      _prediction = null;
+      _dataError = null;
+    });
+    _loadSensorData();
+    _startAutoRefresh();
+  }
+
+  // ───────────────────────────── BUILD ─────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final ColorScheme scheme = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       backgroundColor: scheme.surfaceContainerHighest,
@@ -169,79 +209,135 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Freshness Monitoring'),
-            Text(
-              'Device: $_currentDeviceId',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.normal,
-                color: scheme.onSurface.withOpacity(0.7),
+            if (_selectedDevice != null)
+              Text(
+                '${_selectedDevice!.locationName} · ${_selectedDevice!.name}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.normal,
+                  color: scheme.onSurface.withOpacity(0.65),
+                ),
               ),
-            ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_location),
-            onPressed: _isLoading ? null : _showDeviceSelector,
-            tooltip: 'Change device',
-          ),
-          IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _isLoading
+            tooltip: 'Refresh',
+            onPressed: (_loadingData || _selectedDevice == null)
                 ? null
-                : () => _loadFreshnessData(forceRefresh: true),
-            tooltip: 'Refresh data',
+                : () => _loadSensorData(),
           ),
         ],
       ),
-      body: _isLoading
+      body: _loadingDevices
           ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-          ? _buildErrorView(scheme)
-          : _buildContent(scheme),
+          : _devicesError != null
+              ? _buildError(scheme, _devicesError!, _loadDevices)
+              : _buildBody(scheme),
     );
   }
 
-  Widget _buildErrorView(ColorScheme scheme) {
-    final errorMsg = _errorMessage ?? '';
-    final is404 =
-        errorMsg.contains('No data found') ||
-        errorMsg.contains('404') ||
-        errorMsg.toLowerCase().contains('not found');
+  Widget _buildBody(ColorScheme scheme) {
+    final allDevices = _locations
+        .expand((l) => l.devices.map((d) => d.copyWithLocationName(l.locationName)))
+        .toList();
 
+    return Column(
+      children: [
+        if (allDevices.isNotEmpty) _buildDeviceSelector(scheme),
+        Expanded(
+          child: allDevices.isEmpty
+              ? _buildNoDevices(scheme)
+              : _buildSensorContent(scheme),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceSelector(ColorScheme scheme) {
+    return Container(
+      color: scheme.surface,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _locations
+            .where((loc) => loc.devices.isNotEmpty)
+            .map((loc) => _buildLocationRow(scheme, loc))
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildLocationRow(ColorScheme scheme, FmLocationWithDevices loc) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 6),
+          child: Row(
+            children: [
+              Icon(
+                loc.locationType == 'flower_shop' ? Icons.store : Icons.park,
+                size: 14,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                loc.locationName,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: loc.devices
+              .map((d) => _buildDeviceChip(scheme, d, loc.locationName))
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeviceChip(ColorScheme scheme, FmDevice device, String locationName) {
+    final isSelected = _selectedDevice?.id == device.id;
+    return ChoiceChip(
+      label: Text(device.name),
+      selected: isSelected,
+      avatar: Icon(Icons.sensors, size: 14,
+          color: isSelected ? scheme.onSecondaryContainer : scheme.onSurface),
+      onSelected: (_) => _onDeviceSelected(device.copyWithLocationName(locationName)),
+    );
+  }
+
+  Widget _buildNoDevices(ColorScheme scheme) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              is404 ? Icons.sensors_off : Icons.error_outline,
-              size: 64,
-              color: is404 ? scheme.primary : scheme.error,
-            ),
+            Icon(Icons.devices_other, size: 56, color: scheme.outline),
             const SizedBox(height: 16),
             Text(
-              is404 ? 'No Data Available' : 'Error Loading Data',
+              'No FM Devices Found',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: is404 ? scheme.onSurface : scheme.error,
+                color: scheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              _errorMessage!,
+              'Ask your admin to assign an FM device to your flower shop.',
               textAlign: TextAlign.center,
               style: TextStyle(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: _isLoading
-                  ? null
-                  : () => _loadFreshnessData(forceRefresh: true),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
             ),
           ],
         ),
@@ -249,66 +345,24 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
     );
   }
 
-  Future<void> _showDeviceSelector() async {
-    final TextEditingController controller = TextEditingController(
-      text: _currentDeviceId,
-    );
-
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Change Device ID'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            labelText: 'Device ID',
-            hintText: 'e.g., device_001',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              Navigator.of(context).pop(value.trim());
-            }
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                Navigator.of(context).pop(controller.text.trim());
-              }
-            },
-            child: const Text('Load'),
-          ),
-        ],
-      ),
-    );
-
-    if (result != null && result != _currentDeviceId) {
-      setState(() {
-        _currentDeviceId = result;
-      });
-      await _loadFreshnessData(forceRefresh: true);
+  Widget _buildSensorContent(ColorScheme scheme) {
+    if (_loadingData) {
+      return const Center(child: CircularProgressIndicator());
     }
-  }
-
-  Widget _buildContent(ColorScheme scheme) {
+    if (_dataError != null) {
+      return _buildError(scheme, _dataError!, () => _loadSensorData(), isInfo: true);
+    }
     if (_latestReading == null || _prediction == null) {
       return Center(
         child: Text(
-          'No data available',
+          'Select a device above to view data.',
           style: TextStyle(color: scheme.onSurfaceVariant),
         ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () => _loadFreshnessData(forceRefresh: true),
+      onRefresh: () => _loadSensorData(),
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
@@ -328,13 +382,53 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
     );
   }
 
+  Widget _buildError(
+    ColorScheme scheme,
+    String message,
+    VoidCallback onRetry, {
+    bool isInfo = false,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isInfo ? Icons.sensors_off : Icons.error_outline,
+              size: 56,
+              color: isInfo ? scheme.primary : scheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isInfo ? 'No Data Available' : 'Error',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: scheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFreshnessScoreCard(ColorScheme scheme) {
     final score = _prediction!.freshnessScore;
-    final scoreColor = score >= 70
-        ? Colors.green
-        : score >= 40
-        ? Colors.orange
-        : Colors.red;
+    final scoreColor = score >= 70 ? Colors.green : score >= 40 ? Colors.orange : Colors.red;
 
     return Card(
       elevation: 2,
@@ -342,20 +436,12 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Row(
-              children: [
-                Icon(Icons.local_florist, color: scheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Freshness Score',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
+            Row(children: [
+              Icon(Icons.local_florist, color: scheme.primary),
+              const SizedBox(width: 8),
+              Text('Freshness Score',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ]),
             const SizedBox(height: 20),
             Stack(
               alignment: Alignment.center,
@@ -370,35 +456,21 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
                     valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
                   ),
                 ),
-                Column(
-                  children: [
-                    Text(
-                      score.toStringAsFixed(1),
+                Column(children: [
+                  Text(score.toStringAsFixed(1),
                       style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: scoreColor,
-                      ),
-                    ),
-                    Text(
-                      '/ 100',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          color: scoreColor)),
+                  Text('/ 100',
+                      style: TextStyle(fontSize: 16, color: scheme.onSurfaceVariant)),
+                ]),
               ],
             ),
             const SizedBox(height: 12),
             Text(
               _getFreshnessStatus(score),
-              style: TextStyle(
-                fontSize: 16,
-                color: scoreColor,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 16, color: scoreColor, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -408,8 +480,6 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
 
   Widget _buildVaseLifeCard(ColorScheme scheme) {
     final hours = _prediction!.vaseLifeHours;
-    final days = (hours / 24).toStringAsFixed(1);
-
     return Card(
       elevation: 2,
       child: Padding(
@@ -429,29 +499,16 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Estimated Vase Life',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
+                  Text('Estimated Vase Life',
+                      style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
                   const SizedBox(height: 4),
-                  Text(
-                    '$days days',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: scheme.onSurface,
-                    ),
-                  ),
-                  Text(
-                    '(${hours.toStringAsFixed(1)} hours)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
+                  Text('${(hours / 24).toStringAsFixed(1)} days',
+                      style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: scheme.onSurface)),
+                  Text('(${hours.toStringAsFixed(1)} hours)',
+                      style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                 ],
               ),
             ),
@@ -462,8 +519,7 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
   }
 
   Widget _buildSensorReadingsCard(ColorScheme scheme) {
-    final reading = _latestReading!;
-
+    final r = _latestReading!;
     return Card(
       elevation: 2,
       child: Padding(
@@ -471,95 +527,52 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.sensors, color: scheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  'Sensor Readings',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ],
-            ),
+            Row(children: [
+              Icon(Icons.sensors, color: scheme.primary),
+              const SizedBox(width: 8),
+              Text('Sensor Readings',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ]),
             const SizedBox(height: 16),
-            _buildSensorRow(
-              scheme,
-              Icons.thermostat,
-              'Air Temperature',
-              '${reading.airTemperature.toStringAsFixed(2)}°C',
-              reading.airTemperature >= 15 && reading.airTemperature <= 25
-                  ? Colors.green
-                  : Colors.orange,
-            ),
+            _sensorRow(scheme, Icons.thermostat, 'Air Temperature',
+                '${r.airTemperature.toStringAsFixed(2)}°C',
+                r.airTemperature >= 15 && r.airTemperature <= 25 ? Colors.green : Colors.orange),
             const SizedBox(height: 12),
-            _buildSensorRow(
-              scheme,
-              Icons.water,
-              'Water Temperature',
-              '${reading.waterTemperature.toStringAsFixed(2)}°C',
-              reading.waterTemperature >= 15 && reading.waterTemperature <= 25
-                  ? Colors.green
-                  : Colors.orange,
-            ),
+            _sensorRow(scheme, Icons.water, 'Water Temperature',
+                '${r.waterTemperature.toStringAsFixed(2)}°C',
+                r.waterTemperature >= 15 && r.waterTemperature <= 25 ? Colors.green : Colors.orange),
             const SizedBox(height: 12),
-            _buildSensorRow(
-              scheme,
-              Icons.water_drop,
-              'Humidity',
-              '${reading.humidity.toStringAsFixed(2)}%',
-              reading.humidity >= 40 && reading.humidity <= 80
-                  ? Colors.green
-                  : Colors.orange,
-            ),
+            _sensorRow(scheme, Icons.water_drop, 'Humidity',
+                '${r.humidity.toStringAsFixed(2)}%',
+                r.humidity >= 40 && r.humidity <= 80 ? Colors.green : Colors.orange),
             const SizedBox(height: 12),
-            _buildSensorRow(
-              scheme,
-              Icons.air,
-              'Gas Value',
-              reading.gasValue.toStringAsFixed(2),
-              reading.gasValue < 100 ? Colors.green : Colors.red,
-            ),
+            _sensorRow(scheme, Icons.air, 'Gas Value',
+                r.gasValue.toStringAsFixed(2),
+                r.gasValue < 100 ? Colors.green : Colors.red),
             const SizedBox(height: 12),
-            _buildSensorRow(
-              scheme,
-              Icons.water,
-              'Water Level',
-              '${reading.waterLevel}%',
-              reading.waterLevel >= 20 ? Colors.green : Colors.red,
-            ),
+            _sensorRow(scheme, Icons.opacity, 'Water Level',
+                '${r.waterLevel}%',
+                r.waterLevel >= 20 ? Colors.green : Colors.red),
             const SizedBox(height: 16),
             Divider(color: scheme.outline),
             const SizedBox(height: 8),
-            Text(
-              'Last Updated: ${_formatTimestamp(reading.timestamp)}',
-              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-            ),
+            Text('Last Updated: ${_formatTimestamp(r.timestamp)}',
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSensorRow(
-    ColorScheme scheme,
-    IconData icon,
-    String label,
-    String value,
-    Color statusColor,
-  ) {
+  Widget _sensorRow(ColorScheme scheme, IconData icon, String label,
+      String value, Color statusColor) {
     return Row(
       children: [
         Icon(icon, size: 20, color: scheme.onSurfaceVariant),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
-          ),
+          child: Text(label,
+              style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant)),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -567,14 +580,11 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
             color: statusColor.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: statusColor,
-            ),
-          ),
+          child: Text(value,
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: statusColor)),
         ),
       ],
     );
@@ -589,46 +599,31 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(Icons.warning, color: scheme.onErrorContainer),
-                const SizedBox(width: 8),
-                Text(
-                  'Alerts',
+            Row(children: [
+              Icon(Icons.warning, color: scheme.onErrorContainer),
+              const SizedBox(width: 8),
+              Text('Alerts',
                   style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: scheme.onErrorContainer,
-                  ),
-                ),
-              ],
-            ),
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: scheme.onErrorContainer)),
+            ]),
             const SizedBox(height: 12),
-            ..._prediction!.alerts.map(
-              (alert) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: scheme.onErrorContainer,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        alert,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: scheme.onErrorContainer,
-                        ),
+            ..._prediction!.alerts.map((alert) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: scheme.onErrorContainer),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(alert,
+                            style: TextStyle(
+                                fontSize: 14, color: scheme.onErrorContainer)),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                    ],
+                  ),
+                )),
           ],
         ),
       ),
@@ -636,43 +631,18 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
   }
 
   String _getFreshnessStatus(double score) {
-    if (score >= 70) {
-      return 'Excellent';
-    } else if (score >= 40) {
-      return 'Good';
-    } else {
-      return 'Needs Attention';
-    }
+    if (score >= 70) return 'Excellent';
+    if (score >= 40) return 'Good';
+    return 'Needs Attention';
   }
 
   String _formatTimestamp(DateTime timestamp) {
-    // Convert timestamp to local time for user-friendly display
     final now = DateTime.now();
-    final timestampLocal = timestamp.isUtc ? timestamp.toLocal() : timestamp;
-    final difference = now.difference(timestampLocal);
-
-    // Handle negative differences (future timestamps)
-    if (difference.isNegative) {
-      final absDiff = -difference;
-      if (absDiff.inMinutes < 1) {
-        return 'In a moment';
-      } else if (absDiff.inMinutes < 60) {
-        return 'In ${absDiff.inMinutes} minutes';
-      } else if (absDiff.inHours < 24) {
-        return 'In ${absDiff.inHours} hours';
-      } else {
-        return 'In ${absDiff.inDays} days';
-      }
-    }
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inMinutes < 60) {
-      return '${difference.inMinutes} minutes ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} hours ago';
-    } else {
-      return '${difference.inDays} days ago';
-    }
+    final local = timestamp.isUtc ? timestamp.toLocal() : timestamp;
+    final diff = now.difference(local);
+    if (diff.isNegative || diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} minutes ago';
+    if (diff.inHours < 24) return '${diff.inHours} hours ago';
+    return '${diff.inDays} days ago';
   }
 }
