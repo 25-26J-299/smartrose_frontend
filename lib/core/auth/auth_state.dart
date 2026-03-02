@@ -18,6 +18,7 @@ class AuthState extends ChangeNotifier {
   User? get user => _user;
   List<String> get roles => _user?.roles ?? <String>[];
   String? get role => _user?.role;
+  String? get token => _token;
   bool get isAuthenticated => _token != null;
   bool get isInitializing => _initializing;
   String? get errorMessage => _errorMessage;
