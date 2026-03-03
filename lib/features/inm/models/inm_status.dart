@@ -2,6 +2,7 @@
 // Purpose: Model class for INM status response from Random Forest ML model
 
 class InmStatus {
+  final bool hasSensorData;
   final double currentEc;
   final double predictedEc24h;
   final String ecStatus;
@@ -12,6 +13,7 @@ class InmStatus {
   final DateTime? timestamp;
 
   InmStatus({
+    this.hasSensorData = true,
     required this.currentEc,
     required this.predictedEc24h,
     required this.ecStatus,
@@ -24,6 +26,7 @@ class InmStatus {
 
   factory InmStatus.fromJson(Map<String, dynamic> json) {
     return InmStatus(
+      hasSensorData: json['has_sensor_data'] as bool? ?? true,
       currentEc: _parseDouble(json['current_ec'] ?? json['currentEc']),
       predictedEc24h: _parseDouble(json['predicted_ec_24h'] ?? json['predictedEc24h']),
       ecStatus: json['ec_status']?.toString() ?? 'unknown',
