@@ -1,8 +1,14 @@
 // File: lib/features/inm/screens/inm_actions_history_screen.dart
-// Purpose: INM Actions & History page with modern pill-shaped tabs (2026 design)
+// Purpose: INM Actions & History page.
+//
+// Receives route arguments: Map<String, String> {deviceId, token}
+// These are forwarded to both tabs so every API call is scoped to the
+// correct device and carries a valid Bearer token.
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../../core/auth/auth_state.dart';
 import 'tabs/inm_recommendations_tab.dart';
 import 'tabs/inm_history_tab.dart';
 
@@ -19,10 +25,28 @@ class _InmActionsHistoryScreenState extends State<InmActionsHistoryScreen>
   late TabController _tabController;
   final ValueNotifier<int> _refreshHistoryNotifier = ValueNotifier<int>(0);
 
+  // Resolved from route arguments or AuthState
+  late String _deviceId;
+  late String _token;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map) {
+      _deviceId = args['deviceId'] as String? ?? '';
+      _token = args['token'] as String? ?? '';
+    } else {
+      // Fallback: try to read token from AuthState (deviceId will be empty)
+      _deviceId = '';
+      _token = Provider.of<AuthState>(context, listen: false).token ?? '';
+    }
   }
 
   void _triggerHistoryRefresh() {
@@ -40,6 +64,39 @@ class _InmActionsHistoryScreenState extends State<InmActionsHistoryScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    // Guard: if deviceId is missing, show a clear error
+    if (_deviceId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Actions & History'),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    size: 64,
+                    color: theme.colorScheme.error.withOpacity(0.7)),
+                const SizedBox(height: 16),
+                const Text(
+                  'No device selected.\nPlease go back and select a device first.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       appBar: AppBar(
@@ -53,7 +110,8 @@ class _InmActionsHistoryScreenState extends State<InmActionsHistoryScreen>
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+              color:
+                  theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(30),
             ),
             child: TabBar(
@@ -86,14 +144,22 @@ class _InmActionsHistoryScreenState extends State<InmActionsHistoryScreen>
               ],
             ),
           ),
-          
+
           // Tab views
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                InmRecommendationsTab(onActionTaken: _triggerHistoryRefresh),
-                InmHistoryTab(refreshNotifier: _refreshHistoryNotifier),
+                InmRecommendationsTab(
+                  deviceId: _deviceId,
+                  token: _token,
+                  onActionTaken: _triggerHistoryRefresh,
+                ),
+                InmHistoryTab(
+                  deviceId: _deviceId,
+                  token: _token,
+                  refreshNotifier: _refreshHistoryNotifier,
+                ),
               ],
             ),
           ),
@@ -102,4 +168,3 @@ class _InmActionsHistoryScreenState extends State<InmActionsHistoryScreen>
     );
   }
 }
-

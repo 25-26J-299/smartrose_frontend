@@ -11,9 +11,17 @@ import '../../models/inm_action_history.dart';
 import '../../services/inm_api_service.dart';
 
 class InmHistoryTab extends StatefulWidget {
-  final ValueNotifier<int>? refreshNotifier;
+  /// [deviceId] and [token] scope all API calls to the selected INM device.
+  const InmHistoryTab({
+    super.key,
+    required this.deviceId,
+    required this.token,
+    this.refreshNotifier,
+  });
 
-  const InmHistoryTab({super.key, this.refreshNotifier});
+  final String deviceId;
+  final String token;
+  final ValueNotifier<int>? refreshNotifier;
 
   @override
   State<InmHistoryTab> createState() => _InmHistoryTabState();
@@ -88,7 +96,8 @@ class _InmHistoryTabState extends State<InmHistoryTab>
 
   Future<void> _loadSensorData() async {
     try {
-      final readings = await _apiService.fetchAllReadings();
+      final readings =
+          await _apiService.fetchAllReadings(widget.deviceId, widget.token);
       if (mounted) {
         setState(() {
           _allReadings = readings;
@@ -106,7 +115,8 @@ class _InmHistoryTabState extends State<InmHistoryTab>
 
   Future<void> _loadActionHistory() async {
     try {
-      final actions = await _apiService.fetchActionHistory();
+      final actions = await _apiService.fetchActionHistory(
+          widget.deviceId, widget.token);
       if (mounted) {
         setState(() {
           _actionHistory = actions;

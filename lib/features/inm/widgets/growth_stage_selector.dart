@@ -6,7 +6,16 @@ import 'package:flutter/material.dart';
 import '../services/inm_api_service.dart';
 
 class GrowthStageSelector extends StatefulWidget {
-  const GrowthStageSelector({super.key});
+  /// [deviceId] and [token] are required so growth stage is scoped to
+  /// the specific INM device owned by the logged-in user.
+  const GrowthStageSelector({
+    super.key,
+    required this.deviceId,
+    required this.token,
+  });
+
+  final String deviceId;
+  final String token;
 
   @override
   State<GrowthStageSelector> createState() => _GrowthStageSelectorState();
@@ -14,7 +23,7 @@ class GrowthStageSelector extends StatefulWidget {
 
 class _GrowthStageSelectorState extends State<GrowthStageSelector> {
   final InmApiService _apiService = InmApiService();
-  
+
   String? _selectedStage;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -38,7 +47,8 @@ class _GrowthStageSelectorState extends State<GrowthStageSelector> {
     });
 
     try {
-      final stage = await _apiService.fetchGrowthStage();
+      final stage =
+          await _apiService.fetchGrowthStage(widget.deviceId, widget.token);
       if (mounted) {
         setState(() {
           // Capitalize first letter for display
@@ -66,7 +76,8 @@ class _GrowthStageSelectorState extends State<GrowthStageSelector> {
     try {
       // Convert to lowercase for backend
       final stageToSend = _selectedStage!.toLowerCase();
-      final success = await _apiService.saveGrowthStage(stageToSend);
+      final success = await _apiService.saveGrowthStage(
+          widget.deviceId, widget.token, stageToSend);
       
       if (mounted) {
         setState(() {
