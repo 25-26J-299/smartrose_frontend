@@ -6,6 +6,7 @@ import '../core/auth/auth_state.dart';
 import '../features/inm/services/inm_api_service.dart';
 import '../features/inm/models/inm_status.dart';
 import '../features/inm/models/inm_sensor_reading.dart';
+import '../services/auth_service.dart';
 import '../shared/services/freshness_api_service.dart';
 import '../shared/models/prediction_model.dart';
 import '../shared/models/reading_model.dart';
@@ -29,6 +30,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   // Services
   final InmApiService _inmApiService = InmApiService();
+  final AuthService _authService = AuthService();
   final FreshnessApiService _freshnessApiService = FreshnessApiService();
   final SensorService _sensorService = SensorService();
 
@@ -83,12 +85,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
       List<SensorReading> sensorReadings = [];
 
       try {
-        inmReadings = await _inmApiService.fetchAllReadings();
-        if (inmReadings.isNotEmpty) {
-          inmStatus = await _inmApiService.fetchStatus();
+        final token = Provider.of<AuthState>(context, listen: false).token;
+        if (token != null) {
+          final devices =
+              await _authService.fetchMyDevices(token, deviceType: 'INM');
+          if (devices.isNotEmpty) {
+            final deviceId = (devices.first['device_serial_number'] ??
+                devices.first['device_id'] ?? '') as String;
+            if (deviceId.isNotEmpty) {
+              inmReadings =
+                  await _inmApiService.fetchAllReadings(deviceId, token);
+              if (inmReadings.isNotEmpty) {
+                inmStatus = await _inmApiService.fetchStatus(deviceId, token);
+              }
+            }
+          }
         }
       } catch (e) {
-        // Ignore INM errors
+        // Ignore INM errors — notifications screen degrades gracefully
       }
 
       try {

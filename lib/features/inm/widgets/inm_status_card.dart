@@ -7,7 +7,14 @@ import '../models/inm_status.dart';
 import '../services/inm_api_service.dart';
 
 class InmStatusCard extends StatefulWidget {
-  const InmStatusCard({super.key});
+  const InmStatusCard({
+    super.key,
+    required this.deviceId,
+    required this.token,
+  });
+
+  final String deviceId;
+  final String token;
 
   @override
   State<InmStatusCard> createState() => _InmStatusCardState();
@@ -20,12 +27,13 @@ class _InmStatusCardState extends State<InmStatusCard> {
   @override
   void initState() {
     super.initState();
-    _statusFuture = _apiService.fetchStatus();
+    _statusFuture = _apiService.fetchStatus(widget.deviceId, widget.token);
   }
 
   void _refresh() {
     setState(() {
-      _statusFuture = _apiService.fetchStatus();
+      _statusFuture =
+          _apiService.fetchStatus(widget.deviceId, widget.token);
     });
   }
 
