@@ -8,9 +8,17 @@ import '../../services/inm_api_service.dart';
 import '../../models/inm_status.dart';
 
 class InmRecommendationsTab extends StatefulWidget {
-  final VoidCallback? onActionTaken;
+  /// [deviceId] and [token] scope all API calls to the selected INM device.
+  const InmRecommendationsTab({
+    super.key,
+    required this.deviceId,
+    required this.token,
+    this.onActionTaken,
+  });
 
-  const InmRecommendationsTab({super.key, this.onActionTaken});
+  final String deviceId;
+  final String token;
+  final VoidCallback? onActionTaken;
 
   @override
   State<InmRecommendationsTab> createState() => _InmRecommendationsTabState();
@@ -31,8 +39,8 @@ class _InmRecommendationsTabState extends State<InmRecommendationsTab>
 
   void _loadData() {
     _combinedFuture = Future.wait([
-      _apiService.fetchStatus(),
-      _apiService.fetchGrowthStage(),
+      _apiService.fetchStatus(widget.deviceId, widget.token),
+      _apiService.fetchGrowthStage(widget.deviceId, widget.token),
     ]);
   }
 
@@ -88,7 +96,8 @@ class _InmRecommendationsTabState extends State<InmRecommendationsTab>
     });
 
     try {
-      final success = await _apiService.saveAction(status, 'applied');
+      final success = await _apiService.saveAction(
+          widget.deviceId, widget.token, status, 'applied');
 
       if (mounted) {
         setState(() {
@@ -153,7 +162,8 @@ class _InmRecommendationsTabState extends State<InmRecommendationsTab>
     });
 
     try {
-      final success = await _apiService.saveAction(status, 'ignored');
+      final success = await _apiService.saveAction(
+          widget.deviceId, widget.token, status, 'ignored');
 
       if (mounted) {
         setState(() {
@@ -281,9 +291,11 @@ class _InmRecommendationsTabState extends State<InmRecommendationsTab>
   }
 
   Widget _buildContent(ThemeData theme, InmStatus status, String currentGrowthStage) {
-    final hasRecommendations = status.ecAction.isNotEmpty ||
-        status.phAction.isNotEmpty ||
-        status.npkRecommendation.isNotEmpty;
+    // Only show actionable recommendations when the device has real sensor data
+    final hasRecommendations = status.hasSensorData &&
+        (status.ecAction.isNotEmpty ||
+            status.phAction.isNotEmpty ||
+            status.npkRecommendation.isNotEmpty);
 
     // Use currentGrowthStage if status.growthStage is null
     final displayGrowthStage = status.growthStage ?? currentGrowthStage;
@@ -297,7 +309,10 @@ class _InmRecommendationsTabState extends State<InmRecommendationsTab>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 // Growth Stage Section
-                const GrowthStageSelector(),
+                GrowthStageSelector(
+                  deviceId: widget.deviceId,
+                  token: widget.token,
+                ),
                 
                 const SizedBox(height: 20),
                 
@@ -337,41 +352,75 @@ class _InmRecommendationsTabState extends State<InmRecommendationsTab>
                     ),
                   ],
                 ] else ...[
-                  // No recommendations state
+                  // No sensor data vs. genuinely all good
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 48),
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              shape: BoxShape.circle,
+                      child: status.hasSensorData
+                          ? Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.check_circle,
+                                    size: 64,
+                                    color: Colors.green.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'All Good!',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'No actions needed at the moment.\nYour plants are thriving!',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.6),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(20),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange.withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    Icons.sensors_off,
+                                    size: 64,
+                                    color: Colors.orange.shade600,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                Text(
+                                  'No Sensor Data',
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Waiting for data from the device.\nPlease ensure the device is connected and sending readings.',
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.onSurface
+                                        .withOpacity(0.6),
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
-                            child: Icon(
-                              Icons.check_circle,
-                              size: 64,
-                              color: Colors.green.shade600,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'All Good!',
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'No actions needed at the moment.\nYour plants are thriving! 🌱',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ],
