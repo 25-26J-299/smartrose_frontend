@@ -234,6 +234,11 @@ class InmApiService {
         'device_id': deviceId,
         'action_taken': actionType,
         'recommendation_text': recommendationText,
+        // Store separate fields so history view can show structured rows
+        'ec_action': status.ecAction,
+        'ph_action': status.phAction,
+        'npk_recommendation': status.npkRecommendation,
+        if (status.growthStage != null) 'growth_stage': status.growthStage,
         // Weather context – only included when available
         if (weather != null) ...{
           'weather_condition': weather.condition,
