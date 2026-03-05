@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 
 import '../core/auth/auth_state.dart';
 import '../features/inm/services/inm_api_service.dart';
@@ -8,6 +9,7 @@ import '../features/inm/models/inm_status.dart';
 import '../features/inm/models/inm_sensor_reading.dart';
 import '../services/auth_service.dart';
 import '../shared/services/freshness_api_service.dart';
+import '../shared/services/weather_api_service.dart';
 import '../shared/models/prediction_model.dart';
 import '../shared/models/reading_model.dart';
 import '../shared/services/sensor_service.dart';
@@ -27,12 +29,15 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   NotificationType? _selectedFilter;
+  static const Duration _autoRefreshInterval = Duration(seconds: 30);
+  Timer? _autoRefreshTimer;
 
   // Services
   final InmApiService _inmApiService = InmApiService();
   final AuthService _authService = AuthService();
   final FreshnessApiService _freshnessApiService = FreshnessApiService();
   final SensorService _sensorService = SensorService();
+  final WeatherApiService _weatherApiService = WeatherApiService();
 
   // Data state
   bool _isLoading = false;
@@ -46,6 +51,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   void initState() {
     super.initState();
     _loadNotifications();
+    _startAutoRefresh();
   }
 
   @override
@@ -64,8 +70,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
   @override
   void dispose() {
+    _autoRefreshTimer?.cancel();
     _freshnessApiService.dispose();
+    _weatherApiService.dispose();
     super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _autoRefreshTimer?.cancel();
+    _autoRefreshTimer = Timer.periodic(_autoRefreshInterval, (_) {
+      if (!mounted || _isLoading) return;
+      _loadNotifications();
+    });
   }
 
   Future<void> _loadNotifications() async {
@@ -80,6 +96,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
       // Fetch data from all sources
       List<InmSensorReading> inmReadings = [];
       InmStatus? inmStatus;
+      WeatherModel? weather;
       PredictionModel? freshnessPrediction;
       ReadingModel? freshnessReading;
       List<SensorReading> sensorReadings = [];
@@ -103,6 +120,16 @@ class _NotificationScreenState extends State<NotificationScreen> {
         }
       } catch (e) {
         // Ignore INM errors — notifications screen degrades gracefully
+      }
+
+      // Fetch weather for fertilizer timing advisories (Farmer only)
+      if (RoleFilter.isFarmer(_userRoles) ||
+          RoleFilter.hasBothRoles(_userRoles)) {
+        try {
+          weather = await _weatherApiService.fetchCurrentWeather();
+        } catch (e) {
+          // Ignore weather errors
+        }
       }
 
       try {
@@ -227,6 +254,15 @@ class _NotificationScreenState extends State<NotificationScreen> {
       if (inmStatus != null &&
           (RoleFilter.isFarmer(_userRoles) ||
               RoleFilter.hasBothRoles(_userRoles))) {
+        final bool hasInmRecommendationSignals =
+            (inmStatus.ecAction.isNotEmpty &&
+                inmStatus.ecAction != 'No EC action available') ||
+            (inmStatus.phAction.isNotEmpty &&
+                inmStatus.phAction != 'No pH action available') ||
+            (inmStatus.npkRecommendation.isNotEmpty &&
+                inmStatus.npkRecommendation !=
+                    'No NPK recommendation available');
+
         // Critical/Warning EC status
         if (inmStatus.statusType != EcStatusType.optimal) {
           notifications.add(
@@ -286,6 +322,32 @@ class _NotificationScreenState extends State<NotificationScreen> {
               route: AppRoutes.inmSensors,
             ),
           );
+        }
+
+        // Weather-based fertilizer timing layer (warning only)
+        if (hasInmRecommendationSignals && weather != null) {
+          final advisoryLevel = _computeFertilizerWeatherAdvisoryLevel(weather);
+          if (advisoryLevel != _WeatherAdvisoryLevel.good) {
+            notifications.add(
+              _NotificationItem(
+                type: NotificationType.warning,
+                title: advisoryLevel == _WeatherAdvisoryLevel.postpone
+                    ? 'Fertilizer Timing Alert'
+                    : 'Fertilizer Weather Caution',
+                description: _buildWeatherFertilizerAlertDescription(
+                    weather, advisoryLevel),
+                timestamp:
+                    inmReadings.isNotEmpty && inmReadings.first.timestamp != null
+                    ? inmReadings.first.timestamp!
+                    : DateTime.now(),
+                component: 'Nutrition',
+                icon: advisoryLevel == _WeatherAdvisoryLevel.postpone
+                    ? Icons.umbrella_rounded
+                    : Icons.thermostat_rounded,
+                route: AppRoutes.inmSensors,
+              ),
+            );
+          }
         }
       }
 
@@ -780,6 +842,37 @@ class _NotificationScreenState extends State<NotificationScreen> {
       return DateFormat(dateFormat).format(localTimestamp);
     }
   }
+}
+
+enum _WeatherAdvisoryLevel { good, caution, postpone }
+
+_WeatherAdvisoryLevel _computeFertilizerWeatherAdvisoryLevel(WeatherModel weather) {
+  final condition = weather.condition.toLowerCase();
+  final isRaining = condition.contains('rain') ||
+      condition.contains('drizzle') ||
+      condition.contains('thunder') ||
+      weather.precipitation > 2.0;
+
+  if (isRaining) return _WeatherAdvisoryLevel.postpone;
+  if (weather.humidity > 85 || weather.temperature > 33) {
+    return _WeatherAdvisoryLevel.caution;
+  }
+  return _WeatherAdvisoryLevel.good;
+}
+
+String _buildWeatherFertilizerAlertDescription(
+  WeatherModel weather,
+  _WeatherAdvisoryLevel level,
+) {
+  if (level == _WeatherAdvisoryLevel.postpone) {
+    return 'Rain-risk conditions (${weather.condition}, '
+        '${weather.precipitation.toStringAsFixed(1)} mm) may wash nutrients. '
+        'Postpone fertilizer application.';
+  }
+
+  return 'Current weather (${weather.temperature.toStringAsFixed(1)}°C, '
+      '${weather.humidity.toStringAsFixed(0)}% RH) needs caution for fertilizer '
+      'application. Apply smaller doses and monitor EC.';
 }
 
 class _NotificationItem {

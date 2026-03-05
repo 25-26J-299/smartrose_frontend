@@ -37,19 +37,18 @@ class InmActionHistory {
 
   static DateTime _parseTimestamp(dynamic value) {
     if (value == null) return DateTime.now();
-    
-    if (value is DateTime) return value;
-    
-    String timestampStr = value.toString().trim();
-    if (timestampStr.isEmpty) return DateTime.now();
-    
-    // Remove 'Z' suffix if present
-    if (timestampStr.endsWith('Z')) {
-      timestampStr = timestampStr.substring(0, timestampStr.length - 1);
+
+    if (value is DateTime) {
+      return value.isUtc ? value.toLocal() : value;
     }
-    
-    final parsedTime = DateTime.tryParse(timestampStr);
-    return parsedTime ?? DateTime.now();
+
+    final timestampStr = value.toString().trim();
+    if (timestampStr.isEmpty) return DateTime.now();
+
+    final parsed = DateTime.tryParse(timestampStr);
+    if (parsed == null) return DateTime.now();
+    // Convert UTC to local so display times match the farmer's timezone
+    return parsed.isUtc ? parsed.toLocal() : parsed;
   }
 
   String get formattedTime {
