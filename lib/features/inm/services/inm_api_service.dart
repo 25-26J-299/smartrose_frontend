@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import '../models/inm_sensor_reading.dart';
 import '../models/inm_status.dart';
 import '../models/inm_action_history.dart';
+import '../../../shared/services/weather_api_service.dart';
 
 class InmApiService {
   static String get _baseUrl {
@@ -192,12 +193,18 @@ class InmApiService {
   // ---------------------------------------------------------------------------
 
   /// Saves a farmer action (applied/ignored) for [deviceId].
+  ///
+  /// Pass the current [weather] snapshot so the backend records the
+  /// environmental context at the moment the farmer made the decision.
+  /// This allows the history view and analytics to show why an application
+  /// was skipped (weather-driven vs. manual skip).
   Future<bool> saveAction(
     String deviceId,
     String token,
     InmStatus status,
-    String actionType,
-  ) async {
+    String actionType, {
+    WeatherModel? weather,
+  }) async {
     final url = '$_baseUrl/action';
     try {
       debugPrint('🔄 INM: Saving action "$actionType" for device $deviceId');
@@ -206,10 +213,35 @@ class InmApiService {
           'EC Action: ${status.ecAction}\n\npH Action: ${status.phAction}\n\nNPK Recommendation: ${status.npkRecommendation}'
               .trim();
 
+      // Compute the advisory level to record alongside the raw weather values
+      String? advisoryLabel;
+      if (weather != null) {
+        final condition = weather.condition.toLowerCase();
+        final isRaining = condition.contains('rain') ||
+            condition.contains('drizzle') ||
+            condition.contains('thunder') ||
+            weather.precipitation > 2.0;
+        if (isRaining) {
+          advisoryLabel = 'postpone';
+        } else if (weather.humidity > 85 || weather.temperature > 33) {
+          advisoryLabel = 'caution';
+        } else {
+          advisoryLabel = 'good';
+        }
+      }
+
       final body = jsonEncode({
         'device_id': deviceId,
         'action_taken': actionType,
         'recommendation_text': recommendationText,
+        // Weather context – only included when available
+        if (weather != null) ...{
+          'weather_condition': weather.condition,
+          'weather_temperature_c': weather.temperature,
+          'weather_humidity_pct': weather.humidity,
+          'weather_precipitation_mm': weather.precipitation,
+          'weather_advisory': advisoryLabel,
+        },
       });
 
       final response = await http.post(
