@@ -6,7 +6,7 @@ import '../../services/auth_service.dart';
 /// Auth state backed by the API + secure storage.
 class AuthState extends ChangeNotifier {
   AuthState({AuthService? authService})
-      : _authService = authService ?? AuthService();
+    : _authService = authService ?? AuthService();
 
   final AuthService _authService;
 
@@ -48,7 +48,7 @@ class AuthState extends ChangeNotifier {
     }
   }
 
-  /// Register with full_name, email, phone, password, role (farmer|florist), and location.
+  /// Register with full_name, email, phone, password, roles list, and location.
   /// Returns true if registration succeeded. With new backend, no token is returned
   /// so user must be approved before login.
   Future<bool> register(
@@ -56,7 +56,7 @@ class AuthState extends ChangeNotifier {
     String email,
     String phone,
     String password,
-    String role, {
+    List<String> roles, {
     required String locationName,
     required String locationType,
     required String locationAddress,
@@ -68,7 +68,7 @@ class AuthState extends ChangeNotifier {
         email,
         phone,
         password,
-        role,
+        roles,
         locationName: locationName,
         locationType: locationType,
         locationAddress: locationAddress,
@@ -144,10 +144,12 @@ class AuthState extends ChangeNotifier {
     final newFullName = fullName ?? name;
     _user = User(
       id: _user!.id,
-      fullName: newFullName?.trim().isNotEmpty == true ? newFullName!.trim() : _user!.fullName,
+      fullName: newFullName?.trim().isNotEmpty == true
+          ? newFullName!.trim()
+          : _user!.fullName,
       email: email?.trim().isNotEmpty == true ? email!.trim() : _user!.email,
       phone: phone ?? _user!.phone,
-      role: _user!.role,
+      roles: _user!.roles,
       status: _user!.status,
       createdAt: _user!.createdAt,
       lastLogin: _user!.lastLogin,

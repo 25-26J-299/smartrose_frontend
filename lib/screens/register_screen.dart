@@ -25,7 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  String _selectedRole = 'farmer';
+  final Set<String> _selectedRoles = {'farmer'};
   String _selectedLocationType = 'greenhouse';
   int _currentStep = 0;
 
@@ -124,6 +124,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleSubmit() async {
+    if (_selectedRoles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please select at least one role'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -143,7 +153,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _emailController.text.trim(),
       _phoneController.text.trim(),
       _passwordController.text,
-      _selectedRole,
+      _selectedRoles.toList(),
       locationName: _locationNameController.text.trim(),
       locationType: _selectedLocationType,
       locationAddress: _locationAddressController.text.trim(),
@@ -242,16 +252,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(
           'Your Details',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.primary,
-              ),
+            fontWeight: FontWeight.w600,
+            color: colorScheme.primary,
+          ),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: _fullNameController,
           keyboardType: TextInputType.name,
           textInputAction: TextInputAction.next,
-          decoration: _inputDecoration('Full Name', Icons.person_outlined, softGreen),
+          decoration: _inputDecoration(
+            'Full Name',
+            Icons.person_outlined,
+            softGreen,
+          ),
           validator: _validateFullName,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
@@ -260,7 +274,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           textInputAction: TextInputAction.next,
-          decoration: _inputDecoration('Email', Icons.email_outlined, softGreen),
+          decoration: _inputDecoration(
+            'Email',
+            Icons.email_outlined,
+            softGreen,
+          ),
           validator: _validateEmail,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
@@ -269,45 +287,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _phoneController,
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.next,
-          decoration: _inputDecoration('Phone', Icons.phone_outlined, softGreen),
+          decoration: _inputDecoration(
+            'Phone',
+            Icons.phone_outlined,
+            softGreen,
+          ),
           validator: _validatePhone,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
         const SizedBox(height: 16),
         Text(
-          'Select Role',
+          'Select Role(s)',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: colorScheme.onSurface,
               ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 4),
+        Text(
+          'You can select both if you manage a farm and a flower shop.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+        ),
+        const SizedBox(height: 10),
         Row(
           children: <Widget>[
             Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Farmer'),
-                value: 'farmer',
-                groupValue: _selectedRole,
-                onChanged: (String? value) {
-                  setState(() => _selectedRole = value ?? 'farmer');
-                },
-                contentPadding: EdgeInsets.zero,
-              ),
+              child: _buildRoleChip('Farmer', Icons.agriculture, 'farmer', colorScheme, softGreen),
             ),
+            const SizedBox(width: 12),
             Expanded(
-              child: RadioListTile<String>(
-                title: const Text('Florist'),
-                value: 'florist',
-                groupValue: _selectedRole,
-                onChanged: (String? value) {
-                  setState(() => _selectedRole = value ?? 'farmer');
-                },
-                contentPadding: EdgeInsets.zero,
-              ),
+              child: _buildRoleChip('Florist', Icons.local_florist, 'florist', colorScheme, softGreen),
             ),
           ],
         ),
+        if (_selectedRoles.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'Please select at least one role',
+              style: TextStyle(color: colorScheme.error, fontSize: 12),
+            ),
+          ),
         const SizedBox(height: 16),
         TextFormField(
           controller: _passwordController,
@@ -318,16 +340,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _formKey.currentState?.validate();
             }
           },
-          decoration: _inputDecoration('Password', Icons.lock_outlined, softGreen)
-              .copyWith(
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                color: colorScheme.primary,
+          decoration:
+              _inputDecoration(
+                'Password',
+                Icons.lock_outlined,
+                softGreen,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
               ),
-              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-            ),
-          ),
           validator: _validatePassword,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
@@ -336,16 +365,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _confirmPasswordController,
           obscureText: _obscureConfirmPassword,
           textInputAction: TextInputAction.done,
-          decoration: _inputDecoration('Confirm Password', Icons.lock_outlined, softGreen)
-              .copyWith(
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureConfirmPassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                color: colorScheme.primary,
+          decoration:
+              _inputDecoration(
+                'Confirm Password',
+                Icons.lock_outlined,
+                softGreen,
+              ).copyWith(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                    color: colorScheme.primary,
+                  ),
+                  onPressed: () => setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                  ),
+                ),
               ),
-              onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-            ),
-          ),
           validator: _validateConfirmPassword,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
@@ -363,16 +400,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(
           'Location Details',
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.primary,
-              ),
+            fontWeight: FontWeight.w600,
+            color: colorScheme.primary,
+          ),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: _locationNameController,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _inputDecoration('Company Name', Icons.place_outlined, softGreen),
+          decoration: _inputDecoration(
+            'Company Name',
+            Icons.place_outlined,
+            softGreen,
+          ),
           validator: _validateLocationName,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
@@ -380,9 +421,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Text(
           'Location Type',
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: colorScheme.onSurface,
-              ),
+            fontWeight: FontWeight.w600,
+            color: colorScheme.onSurface,
+          ),
         ),
         const SizedBox(height: 8),
         Row(
@@ -417,7 +458,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           keyboardType: TextInputType.streetAddress,
           textInputAction: TextInputAction.done,
           maxLines: 2,
-          decoration: _inputDecoration('Address', Icons.location_on_outlined, softGreen),
+          decoration: _inputDecoration(
+            'Address',
+            Icons.location_on_outlined,
+            softGreen,
+          ),
           validator: _validateLocationAddress,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
@@ -425,7 +470,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon, Color softGreen) {
+  Widget _buildRoleChip(
+    String label,
+    IconData icon,
+    String roleKey,
+    ColorScheme colorScheme,
+    Color softGreen,
+  ) {
+    final bool isSelected = _selectedRoles.contains(roleKey);
+    return FilterChip(
+      label: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(icon, size: 20, color: isSelected ? Colors.white : colorScheme.primary),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+      selected: isSelected,
+      onSelected: _isLoading
+          ? null
+          : (bool selected) {
+              setState(() {
+                if (selected) {
+                  _selectedRoles.add(roleKey);
+                } else {
+                  _selectedRoles.remove(roleKey);
+                }
+              });
+            },
+      selectedColor: colorScheme.primary,
+      backgroundColor: softGreen.withOpacity(0.3),
+      checkmarkColor: Colors.white,
+      showCheckmark: false,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isSelected ? colorScheme.primary : colorScheme.primary.withOpacity(0.3),
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(
+    String label,
+    IconData icon,
+    Color softGreen,
+  ) {
     final colorScheme = Theme.of(context).colorScheme;
     return InputDecoration(
       labelText: label,
@@ -500,7 +601,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Text(
                           'SmartRose',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: colorScheme.primary,
                                 letterSpacing: 1.2,
@@ -510,7 +612,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Text(
                           'Create Account',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.primary,
                               ),
@@ -520,9 +623,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ? 'Step 1: Your details'
                               : 'Step 2: Location details',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                          style: Theme.of(context).textTheme.bodyLarge
+                              ?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 16),
                         _buildStepIndicator(),
@@ -530,8 +632,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),
                           child: _currentStep == 0
-                              ? KeyedSubtree(key: const ValueKey<int>(0), child: _buildStep1())
-                              : KeyedSubtree(key: const ValueKey<int>(1), child: _buildStep2()),
+                              ? KeyedSubtree(
+                                  key: const ValueKey<int>(0),
+                                  child: _buildStep1(),
+                                )
+                              : KeyedSubtree(
+                                  key: const ValueKey<int>(1),
+                                  child: _buildStep2(),
+                                ),
                         ),
                         const SizedBox(height: 24),
                         Row(
@@ -539,9 +647,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             if (_currentStep == 1)
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: _isLoading ? null : _goToPreviousStep,
+                                  onPressed: _isLoading
+                                      ? null
+                                      : _goToPreviousStep,
                                   style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
@@ -555,9 +667,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               child: FilledButton(
                                 onPressed: _isLoading
                                     ? null
-                                    : (_currentStep == 0 ? _goToNextStep : _handleSubmit),
+                                    : (_currentStep == 0
+                                          ? _goToNextStep
+                                          : _handleSubmit),
                                 style: FilledButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
                                   backgroundColor: colorScheme.primary,
                                   foregroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
@@ -571,9 +687,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         width: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.white,
+                                              ),
                                         ),
                                       )
                                     : Text(
@@ -598,9 +715,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             TextButton(
                               onPressed: _isLoading
                                   ? null
-                                  : () => Navigator.of(context).pushReplacementNamed(AppRoutes.login),
+                                  : () => Navigator.of(
+                                      context,
+                                    ).pushReplacementNamed(AppRoutes.login),
                               style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                               ),
                               child: Text(
                                 'Login',
