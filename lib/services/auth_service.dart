@@ -20,9 +20,9 @@ class AuthService {
     http.Client? client,
     FlutterSecureStorage? storage,
     String? baseUrl,
-  })  : _client = client ?? http.Client(),
-        _storage = storage ?? const FlutterSecureStorage(),
-        _baseUrl = baseUrl ?? getApiBaseUrl();
+  }) : _client = client ?? http.Client(),
+       _storage = storage ?? const FlutterSecureStorage(),
+       _baseUrl = baseUrl ?? getApiBaseUrl();
 
   final http.Client _client;
   final FlutterSecureStorage _storage;
@@ -31,7 +31,7 @@ class AuthService {
 
   Uri _uri(String path) => Uri.parse('$_baseUrl$path');
 
-  /// Register with full_name, email, phone, password, role (farmer|florist), and location.
+  /// Register with full_name, email, phone, password, roles (list), and location.
   /// Returns AuthResult only if backend returns token (legacy); otherwise returns null
   /// and caller should show "pending approval" message.
   Future<AuthResult?> register(
@@ -39,7 +39,7 @@ class AuthService {
     String email,
     String phone,
     String password,
-    String role, {
+    List<String> roles, {
     required String locationName,
     required String locationType,
     required String locationAddress,
@@ -52,7 +52,7 @@ class AuthService {
         'email': email,
         'phone': phone,
         'password': password,
-        'role': role,
+        'roles': roles,
         'location': <String, dynamic>{
           'name': locationName,
           'type': locationType,
@@ -193,7 +193,8 @@ class AuthService {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic> body =
             jsonDecode(response.body) as Map<String, dynamic>;
-        final List<dynamic> raw = body['devices'] as List<dynamic>? ?? <dynamic>[];
+        final List<dynamic> raw =
+            body['devices'] as List<dynamic>? ?? <dynamic>[];
         return raw.cast<Map<String, dynamic>>();
       }
       debugPrint('fetchMyDevices failed: ${response.statusCode}');

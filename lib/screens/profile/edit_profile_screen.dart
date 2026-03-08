@@ -26,9 +26,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final auth = context.read<AuthState>();
     _nameController = TextEditingController(text: auth.user?.name ?? '');
     _emailController = TextEditingController(text: auth.user?.email ?? '');
-    final roles = auth.roles.toSet();
-    _farmer = roles.contains('farmer');
-    _florist = roles.contains('florist');
+    final rolesSet = auth.user?.roles.toSet() ?? <String>{};
+    _farmer = rolesSet.contains('farmer');
+    _florist = rolesSet.contains('florist');
   }
 
   @override
@@ -45,6 +45,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (_farmer) 'farmer',
       if (_florist) 'florist',
     ];
+    if (newRoles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one role'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
     setState(() {
       _saving = true;
