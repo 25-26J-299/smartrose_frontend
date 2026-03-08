@@ -88,7 +88,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String? _validateLocationName(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Please enter location name';
+      return 'Please enter company name';
     }
     return null;
   }
@@ -372,7 +372,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           controller: _locationNameController,
           keyboardType: TextInputType.text,
           textInputAction: TextInputAction.next,
-          decoration: _inputDecoration('Location Name', Icons.place_outlined, softGreen),
+          decoration: _inputDecoration('Company Name', Icons.place_outlined, softGreen),
           validator: _validateLocationName,
           autovalidateMode: AutovalidateMode.onUserInteraction,
         ),
