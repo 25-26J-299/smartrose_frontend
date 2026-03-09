@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_routes.dart';
 import '../../core/auth/auth_state.dart';
+import '../../services/auth_service.dart';
 import '../shared/models/weather_model.dart';
 import '../shared/services/weather_api_service.dart';
 import '../shared/utils/role_filter.dart';
@@ -21,12 +22,26 @@ class _DashboardScreenState extends State<DashboardScreen>
     with WidgetsBindingObserver {
   Timer? _autoRefreshTimer;
   final WeatherApiService _weatherApiService = WeatherApiService();
+  final AuthService _authService = AuthService();
   final TextEditingController _searchController = TextEditingController();
 
   WeatherModel? _weather;
   bool _isWeatherLoading = false;
   String? _weatherError;
   String _searchQuery = '';
+
+  /// Device types assigned to this user (e.g. {'INM', 'FM'}).
+  /// null = still loading. empty set = loaded, no devices.
+  Set<String>? _assignedDeviceTypes;
+  bool _isDevicesLoading = true;
+
+  /// Maps componentType → backend device type string (uppercase)
+  static const Map<String, String> _componentToDeviceType = <String, String>{
+    'inm': 'INM',
+    'disease': 'EDAS',
+    'environment': 'EOSM',
+    'freshness': 'FM',
+  };
 
   static final List<_ComponentCard> _allComponents = <_ComponentCard>[
     _ComponentCard(
@@ -69,6 +84,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     _loadWeather();
     _startAutoRefresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAssignedDeviceTypes();
+    });
   }
 
   @override
@@ -102,6 +120,40 @@ class _DashboardScreenState extends State<DashboardScreen>
     _autoRefreshTimer = null;
   }
 
+  Future<void> _loadAssignedDeviceTypes() async {
+    if (!mounted) return;
+    final String? token = context.read<AuthState>().token;
+    if (token == null) {
+      setState(() {
+        _assignedDeviceTypes = <String>{};
+        _isDevicesLoading = false;
+      });
+      return;
+    }
+    setState(() => _isDevicesLoading = true);
+    try {
+      final List<Map<String, dynamic>> devices =
+          await _authService.fetchMyDevices(token);
+      if (!mounted) return;
+      final Set<String> types = devices
+          .map((Map<String, dynamic> d) =>
+              (d['type'] as String? ?? '').toUpperCase())
+          .where((String t) => t.isNotEmpty)
+          .toSet();
+      setState(() {
+        _assignedDeviceTypes = types;
+        _isDevicesLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      // On error fall back to empty — no services shown rather than a crash
+      setState(() {
+        _assignedDeviceTypes = <String>{};
+        _isDevicesLoading = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -132,10 +184,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         padding: EdgeInsets.symmetric(
                           horizontal: constraints.maxWidth < 400 ? 16 : 20,
                         ),
-                        child: _buildSectionTitle(
-                          'SmartRose Components',
-                          scheme,
-                        ),
+                        child: _buildSectionTitle('SmartRose Services', scheme),
                       ),
                       const SizedBox(height: 16),
                       Padding(
@@ -353,7 +402,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             _weatherError = null;
           } else {
             _weather = null;
-            _weatherError = 'Failed to load weather data. Please check your internet connection.';
+            _weatherError =
+                'Failed to load weather data. Please check your internet connection.';
           }
           _isWeatherLoading = false;
         });
@@ -729,40 +779,58 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildComponentCards(BuildContext context, ColorScheme scheme) {
-    // Get user roles for filtering
+    // Show loading indicator while fetching assigned devices
+    if (_isDevicesLoading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Get user roles for role-based filtering
     final AuthState authState = context.watch<AuthState>();
     final List<String> roles = authState.roles;
 
-    // Filter components based on user roles
-    final roleFilteredComponents = RoleFilter.filterComponents(
+    // 1. Filter by role
+    final List<_ComponentCard> roleFilteredComponents =
+        RoleFilter.filterComponents(
       allComponents: _allComponents,
       roles: roles,
       getComponentType: (component) => component.componentType,
     );
 
-    // Filter components based on search query
-    final filteredComponents = _searchQuery.isEmpty
-        ? roleFilteredComponents
-        : roleFilteredComponents
-              .where(
-                (component) =>
-                    component.name.toLowerCase().contains(_searchQuery),
-              )
-              .toList();
+    // 2. Filter by assigned devices — only show cards whose device type the
+    //    user actually has assigned
+    final Set<String> assigned = _assignedDeviceTypes ?? <String>{};
+    final List<_ComponentCard> deviceFilteredComponents =
+        roleFilteredComponents.where((_ComponentCard c) {
+      final String? deviceType = _componentToDeviceType[c.componentType];
+      return deviceType != null && assigned.contains(deviceType);
+    }).toList();
+
+    // 3. Filter by search query
+    final List<_ComponentCard> filteredComponents = _searchQuery.isEmpty
+        ? deviceFilteredComponents
+        : deviceFilteredComponents
+            .where((component) =>
+                component.name.toLowerCase().contains(_searchQuery))
+            .toList();
 
     if (filteredComponents.isEmpty) {
+      // Different messages for "no devices assigned" vs "search returned nothing"
+      final bool hasDevices = deviceFilteredComponents.isNotEmpty;
       return Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           children: [
             Icon(
-              Icons.search_off_rounded,
+              hasDevices ? Icons.search_off_rounded : Icons.devices_other_rounded,
               size: 64,
               color: scheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
-              'No components found',
+              hasDevices ? 'No components found' : 'No services available',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -771,12 +839,23 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'Try searching with different keywords',
+              hasDevices
+                  ? 'Try searching with different keywords'
+                  : 'No devices have been assigned to your account yet.\nPlease contact your administrator.',
               style: TextStyle(
                 fontSize: 14,
                 color: scheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
+              textAlign: TextAlign.center,
             ),
+            if (!hasDevices) ...[
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: _loadAssignedDeviceTypes,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Refresh'),
+              ),
+            ],
           ],
         ),
       );
@@ -793,7 +872,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       physics: const NeverScrollableScrollPhysics(),
       itemCount: filteredComponents.length,
       itemBuilder: (BuildContext context, int index) {
-        final component = filteredComponents[index];
+        final _ComponentCard component = filteredComponents[index];
         return _buildComponentCard(context, scheme, component);
       },
     );
