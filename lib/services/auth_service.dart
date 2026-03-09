@@ -170,17 +170,49 @@ class AuthService {
     return null;
   }
 
+  /// Fetch the logged-in user's locations (greenhouses & flower shops).
+  Future<List<Map<String, dynamic>>> fetchMyLocations(String token) async {
+    try {
+      final http.Response response = await _client
+          .get(
+            _uri('/auth/my-locations'),
+            headers: <String, String>{'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic> body =
+            jsonDecode(response.body) as Map<String, dynamic>;
+        final List<dynamic> raw =
+            body['locations'] as List<dynamic>? ?? <dynamic>[];
+        return raw.cast<Map<String, dynamic>>();
+      }
+      return <Map<String, dynamic>>[];
+    } catch (e) {
+      debugPrint('fetchMyLocations error: $e');
+      return <Map<String, dynamic>>[];
+    }
+  }
+
   /// Fetch the logged-in user's assigned devices.
   ///
   /// Pass [deviceType] to filter by type (e.g. 'INM', 'EOSM', 'EDAS', 'FM').
+  /// Pass [locationId] to filter by a specific greenhouse / flower shop.
   /// Returns a list of device maps from the backend.
   Future<List<Map<String, dynamic>>> fetchMyDevices(
     String token, {
     String? deviceType,
+    String? locationId,
   }) async {
-    var path = '/auth/my-devices';
+    final List<String> params = <String>[];
     if (deviceType != null) {
-      path += '?device_type=${Uri.encodeComponent(deviceType)}';
+      params.add('device_type=${Uri.encodeComponent(deviceType)}');
+    }
+    if (locationId != null) {
+      params.add('location_id=${Uri.encodeComponent(locationId)}');
+    }
+    var path = '/auth/my-devices';
+    if (params.isNotEmpty) {
+      path += '?${params.join('&')}';
     }
     try {
       final http.Response response = await _client

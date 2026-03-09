@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/app_routes.dart';
 import '../../core/auth/auth_state.dart';
+import '../../models/location.dart';
 import '../../services/auth_service.dart';
 import '../shared/models/weather_model.dart';
 import '../shared/services/weather_api_service.dart';
@@ -30,7 +31,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   String? _weatherError;
   String _searchQuery = '';
 
-  /// Device types assigned to this user (e.g. {'INM', 'FM'}).
+  /// User's locations (greenhouses + flower shops)
+  List<LocationModel> _locations = <LocationModel>[];
+  bool _isLocationsLoading = true;
+
+  /// Currently selected location. null = "All locations"
+  LocationModel? _selectedLocation;
+
+  /// Device types assigned within the selected location (or all locations).
   /// null = still loading. empty set = loaded, no devices.
   Set<String>? _assignedDeviceTypes;
   bool _isDevicesLoading = true;
@@ -85,7 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _loadWeather();
     _startAutoRefresh();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAssignedDeviceTypes();
+      _loadLocationsAndDevices();
     });
   }
 
@@ -120,7 +128,42 @@ class _DashboardScreenState extends State<DashboardScreen>
     _autoRefreshTimer = null;
   }
 
-  Future<void> _loadAssignedDeviceTypes() async {
+  Future<void> _loadLocationsAndDevices() async {
+    if (!mounted) return;
+    final String? token = context.read<AuthState>().token;
+    if (token == null) {
+      setState(() {
+        _isLocationsLoading = false;
+        _isDevicesLoading = false;
+        _assignedDeviceTypes = <String>{};
+      });
+      return;
+    }
+
+    // --- 1. Fetch locations ---
+    setState(() => _isLocationsLoading = true);
+    try {
+      final List<Map<String, dynamic>> raw =
+          await _authService.fetchMyLocations(token);
+      if (!mounted) return;
+      final List<LocationModel> locs =
+          raw.map(LocationModel.fromJson).toList();
+      setState(() {
+        _locations = locs;
+        // Auto-select first location if only one; otherwise keep "All"
+        _selectedLocation = locs.length == 1 ? locs.first : null;
+        _isLocationsLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLocationsLoading = false);
+    }
+
+    // --- 2. Fetch devices for the (optionally) selected location ---
+    await _loadDevicesForLocation(_selectedLocation?.id);
+  }
+
+  Future<void> _loadDevicesForLocation(String? locationId) async {
     if (!mounted) return;
     final String? token = context.read<AuthState>().token;
     if (token == null) {
@@ -132,8 +175,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     setState(() => _isDevicesLoading = true);
     try {
-      final List<Map<String, dynamic>> devices =
-          await _authService.fetchMyDevices(token);
+      final List<Map<String, dynamic>> devices = await _authService
+          .fetchMyDevices(token, locationId: locationId);
       if (!mounted) return;
       final Set<String> types = devices
           .map((Map<String, dynamic> d) =>
@@ -146,12 +189,20 @@ class _DashboardScreenState extends State<DashboardScreen>
       });
     } catch (_) {
       if (!mounted) return;
-      // On error fall back to empty — no services shown rather than a crash
       setState(() {
         _assignedDeviceTypes = <String>{};
         _isDevicesLoading = false;
       });
     }
+  }
+
+  void _onLocationSelected(LocationModel? location) {
+    if (_selectedLocation?.id == location?.id) return;
+    setState(() {
+      _selectedLocation = location;
+      _assignedDeviceTypes = null;
+    });
+    _loadDevicesForLocation(location?.id);
   }
 
   @override
@@ -180,6 +231,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       const SizedBox(height: 20),
                       _buildWeatherCard(context, scheme),
                       const SizedBox(height: 24),
+                      // Location selector
+                      if (!_isLocationsLoading && _locations.isNotEmpty)
+                        _buildLocationSelector(scheme),
+                      if (!_isLocationsLoading && _locations.isNotEmpty)
+                        const SizedBox(height: 20),
                       Padding(
                         padding: EdgeInsets.symmetric(
                           horizontal: constraints.maxWidth < 400 ? 16 : 20,
@@ -766,6 +822,365 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  static const Color _greenhouseColor = Color(0xFF2E7D32);
+  static const Color _flowerShopColor = Color(0xFFC2185B);
+
+  Widget _buildLocationSelector(ColorScheme scheme) {
+    final bool hasMultiple = _locations.length > 1;
+    final List<LocationModel> greenhouses =
+        _locations.where((LocationModel l) => l.isGreenhouse).toList();
+    final List<LocationModel> flowerShops =
+        _locations.where((LocationModel l) => l.isFlowerShop).toList();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        elevation: 0,
+        shadowColor: Colors.black.withValues(alpha: 0.08),
+        child: InkWell(
+          onTap: () => _showLocationPicker(
+            scheme,
+            hasMultiple: hasMultiple,
+            greenhouses: greenhouses,
+            flowerShops: flowerShops,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: scheme.outline.withValues(alpha: 0.12),
+                width: 1,
+              ),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.place_rounded,
+                        size: 22,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            _selectedLocation == null
+                                ? 'All Locations'
+                                : _selectedLocation!.name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: scheme.onSurface,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _selectedLocation == null
+                                ? 'Viewing devices from all locations'
+                                : _selectedLocation!.typeLabel,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 28,
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+                if (_selectedLocation != null &&
+                    _selectedLocation!.address != null &&
+                    _selectedLocation!.address!.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Icon(
+                        Icons.pin_drop_outlined,
+                        size: 14,
+                        color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _selectedLocation!.address!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant
+                                .withValues(alpha: 0.8),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showLocationPicker(
+    ColorScheme scheme, {
+    required bool hasMultiple,
+    required List<LocationModel> greenhouses,
+    required List<LocationModel> flowerShops,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (BuildContext context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.5,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(24),
+          ),
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.15),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            const SizedBox(height: 12),
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.symmetric(horizontal: 160),
+              decoration: BoxDecoration(
+                color: scheme.outline.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Text(
+                'Select Location',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                children: <Widget>[
+                  if (hasMultiple)
+                    _buildLocationPickerTile(
+                      context,
+                      scheme,
+                      label: 'All Locations',
+                      subtitle: 'View devices from all locations',
+                      icon: Icons.apps_rounded,
+                      color: scheme.primary,
+                      isSelected: _selectedLocation == null,
+                      onTap: () {
+                        Navigator.pop(context);
+                        _onLocationSelected(null);
+                      },
+                    ),
+                  if (hasMultiple) const SizedBox(height: 8),
+                  if (greenhouses.isNotEmpty) ...<Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 8, 0, 6),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.warehouse_rounded,
+                              size: 16, color: _greenhouseColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Greenhouses',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _greenhouseColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...greenhouses.map(
+                      (LocationModel loc) => _buildLocationPickerTile(
+                        context,
+                        scheme,
+                        label: loc.name,
+                        subtitle: loc.address,
+                        icon: Icons.warehouse_rounded,
+                        color: _greenhouseColor,
+                        isSelected: _selectedLocation?.id == loc.id,
+                        onTap: () {
+                          Navigator.pop(context);
+                          _onLocationSelected(loc);
+                        },
+                      ),
+                    ),
+                  ],
+                  if (flowerShops.isNotEmpty) ...<Widget>[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 16, 0, 6),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.local_florist_rounded,
+                              size: 16, color: _flowerShopColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Flower Shops',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _flowerShopColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...flowerShops.map(
+                      (LocationModel loc) => _buildLocationPickerTile(
+                        context,
+                        scheme,
+                        label: loc.name,
+                        subtitle: loc.address,
+                        icon: Icons.local_florist_rounded,
+                        color: _flowerShopColor,
+                        isSelected: _selectedLocation?.id == loc.id,
+                        onTap: () {
+                          Navigator.pop(context);
+                          _onLocationSelected(loc);
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocationPickerTile(
+    BuildContext context,
+    ColorScheme scheme, {
+    required String label,
+    required String? subtitle,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: isSelected
+            ? color.withValues(alpha: 0.08)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: <Widget>[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 20, color: color),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (subtitle != null && subtitle.isNotEmpty) ...<Widget>[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 24,
+                    color: color,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String title, ColorScheme scheme) {
     return Text(
       title,
@@ -851,7 +1266,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             if (!hasDevices) ...[
               const SizedBox(height: 20),
               OutlinedButton.icon(
-                onPressed: _loadAssignedDeviceTypes,
+                onPressed: () => _loadDevicesForLocation(_selectedLocation?.id),
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Refresh'),
               ),
