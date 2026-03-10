@@ -5,9 +5,15 @@ import '../models/sensor_reading.dart';
 
 // Start of EOSM
 class SensorTile extends StatelessWidget {
-  const SensorTile({required this.reading, super.key});
+  const SensorTile({
+    required this.reading,
+    this.deviceDisplayName,
+    super.key,
+  });
 
   final SensorReading reading;
+  /// When set, shown instead of device serial in the title (e.g. device name).
+  final String? deviceDisplayName;
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +22,14 @@ class SensorTile extends StatelessWidget {
     final String subtitle =
         '${DateFormat('MMM d, HH:mm').format(ts)}'
         '${reading.basestationId.isNotEmpty ? ' · ${reading.basestationId}' : ''}';
+
+    final String titleLabel = deviceDisplayName != null
+        ? 'Device $deviceDisplayName'
+        : reading.deviceId != null
+            ? 'Device ${reading.deviceId}'
+            : reading.basestationId.isNotEmpty
+                ? 'Base Station ${reading.basestationId}'
+                : 'EOSM Reading';
 
     return Card(
       elevation: 0,
@@ -41,11 +55,7 @@ class SensorTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        reading.deviceId != null
-                            ? 'Device ${reading.deviceId}'
-                            : reading.basestationId.isNotEmpty
-                                ? 'Base Station ${reading.basestationId}'
-                                : 'EOSM Reading',
+                        titleLabel,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),

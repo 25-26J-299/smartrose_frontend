@@ -5,9 +5,15 @@ import 'package:flutter/material.dart';
 import '../models/inm_sensor_reading.dart';
 
 class InmHistoryTable extends StatelessWidget {
-  final List<InmSensorReading> readings;
+  const InmHistoryTable({
+    super.key,
+    required this.readings,
+    this.serialToName,
+  });
 
-  const InmHistoryTable({super.key, required this.readings});
+  final List<InmSensorReading> readings;
+  /// Optional map of device serial -> display name for the Device column.
+  final Map<String, String>? serialToName;
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +136,7 @@ class InmHistoryTable extends StatelessWidget {
                               style: const TextStyle(fontSize: 11),
                             ),
                           ),
-                          // Device ID
+                          // Device: show name when available
                           DataCell(
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -142,7 +148,7 @@ class InmHistoryTable extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                reading.deviceId,
+                                serialToName?[reading.deviceId] ?? reading.deviceId,
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,

@@ -148,7 +148,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
       }
 
       try {
-        sensorReadings = await _sensorService.fetchLatestReadings(limit: 20);
+        sensorReadings = await _sensorService.fetchLatestReadings(
+          limit: 20,
+          token: Provider.of<AuthState>(context, listen: false).token,
+        );
       } catch (e) {
         // Ignore sensor errors
       }

@@ -21,9 +21,11 @@ class ApiService {
   Future<http.Response> getUri(
     Uri uri, {
     Map<String, String>? headers,
+    String? token,
   }) {
     final Map<String, String> resolvedHeaders = <String, String>{
       'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       ...?headers,
     };
     return _client.get(uri, headers: resolvedHeaders);
@@ -33,8 +35,9 @@ class ApiService {
     String path, {
     Map<String, String>? query,
     Map<String, String>? headers,
+    String? token,
   }) {
-    return getUri(uri(path, query: query), headers: headers);
+    return getUri(uri(path, query: query), headers: headers, token: token);
   }
 
   Map<String, dynamic>? decodeJson(http.Response response) {
