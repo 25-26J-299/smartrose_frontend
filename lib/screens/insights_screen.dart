@@ -107,7 +107,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
       }
 
       try {
-        sensorData = await _sensorService.fetchLatestReadings(limit: 100);
+        final token = Provider.of<AuthState>(context, listen: false).token;
+        sensorData = await _sensorService.fetchLatestReadings(
+          limit: 100,
+          token: token,
+        );
       } catch (e) {
         // Ignore error, use empty list
       }

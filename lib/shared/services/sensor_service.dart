@@ -11,12 +11,16 @@ class SensorService {
 
   final ApiService _apiService;
 
-  Future<List<SensorReading>> fetchLatestReadings({int limit = 20}) async {
+  Future<List<SensorReading>> fetchLatestReadings({
+    int limit = 20,
+    String? token,
+  }) async {
     try {
       // Start of EOSM
       final http.Response response = await _apiService.get(
         '/eosm-data/',
         query: <String, String>{'limit': '$limit'},
+        token: token,
       );
       // End of EOSM
 

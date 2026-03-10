@@ -19,6 +19,7 @@ class SensorApi {
     String? deviceId,
     DateTime? startDate,
     DateTime? endDate,
+    String? token,
   }) async {
     String? formatDate(DateTime? date) {
       if (date == null) return null;
@@ -33,9 +34,9 @@ class SensorApi {
     };
     // Start of EOSM
     final Uri uri = _apiService.uri('/eosm-data/', query: query);
-    
+
     try {
-      final http.Response response = await _apiService.getUri(uri);
+      final http.Response response = await _apiService.getUri(uri, token: token);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic>? body = _apiService.decodeJson(response);
         final dynamic data = body?['data'];
@@ -53,6 +54,7 @@ class SensorApi {
   /// Fetch latest sensor reading with its ML prediction
   Future<Map<String, dynamic>?> fetchLatestWithPrediction({
     String? deviceId,
+    String? token,
   }) async {
     // Start of EOSM
     final Map<String, String> query = <String, String>{};
@@ -61,7 +63,7 @@ class SensorApi {
     final Uri uri = _apiService.uri('/eosm-data/latest-with-prediction', query: query);
 
     try {
-      final http.Response response = await _apiService.getUri(uri);
+      final http.Response response = await _apiService.getUri(uri, token: token);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic>? body = _apiService.decodeJson(response);
         final dynamic data = body?['data'];

@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/auth_state.dart';
 import '../../../shared/models/sensor_reading.dart';
 import '../../../shared/models/eosm_stress_prediction.dart';
 import '../../../shared/providers/sensor_provider.dart';
 import '../../../shared/widgets/stress_gauge.dart';
 import '../../../shared/widgets/trend_chart.dart';
 import '../../../shared/widgets/gradient_header.dart';
+import '../../../services/auth_service.dart';
 
 class EosmDashboardScreen extends StatefulWidget {
   const EosmDashboardScreen({super.key});
@@ -21,13 +23,14 @@ class EosmDashboardScreen extends StatefulWidget {
 
 class _EosmDashboardScreenState extends State<EosmDashboardScreen> {
   late final SensorProvider _provider;
+  Map<String, String>? _eosmDeviceNames; // serial -> display name
+  bool _loadingDeviceNames = false;
 
   @override
   void initState() {
     super.initState();
     _provider = SensorProvider();
-    // Kick off initial and periodic refresh.
-    unawaited(_provider.startAutoRefresh());
+    // Auto-refresh is started in build when we have context and token (AuthState).
   }
 
   @override
@@ -38,20 +41,57 @@ class _EosmDashboardScreenState extends State<EosmDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final String? token = context.read<AuthState>().token;
+    if (token != null &&
+        _eosmDeviceNames == null &&
+        !_loadingDeviceNames &&
+        mounted) {
+      _loadingDeviceNames = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final List<Map<String, dynamic>> devices =
+            await AuthService().fetchMyDevices(token!, deviceType: 'EOSM');
+        final Map<String, String> map = <String, String>{};
+        for (final Map<String, dynamic> d in devices) {
+          final String serial = (d['device_serial_number'] ?? d['device_id'])
+                  ?.toString()
+                  .trim() ??
+              '';
+          final String? name = d['name']?.toString().trim();
+          if (serial.isNotEmpty) {
+            map[serial] =
+                (name != null && name.isNotEmpty) ? name : serial;
+          }
+        }
+        if (mounted) {
+          setState(() {
+            _eosmDeviceNames = map;
+            _loadingDeviceNames = false;
+          });
+        }
+      });
+    }
+
     return ChangeNotifierProvider<SensorProvider>.value(
       value: _provider,
-      child: const _DashboardView(),
+      child: _DashboardView(deviceSerialToName: _eosmDeviceNames),
     );
   }
 }
 
 class _DashboardView extends StatelessWidget {
-  const _DashboardView();
+  const _DashboardView({this.deviceSerialToName});
+
+  final Map<String, String>? deviceSerialToName;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SensorProvider>(
       builder: (BuildContext context, SensorProvider provider, Widget? _) {
+        // Use token from AuthState so EOSM API requests are authenticated (fixes 401 on iOS).
+        final String? token = context.read<AuthState>().token;
+        provider.setToken(token);
+        provider.startAutoRefresh();
+
         final SensorReading? latest = provider.latestForSelected;
         final EosmStressPrediction? prediction = provider.latestPrediction;
         final List<SensorReading> history = provider.readingsForSelected;
@@ -86,6 +126,7 @@ class _DashboardView extends StatelessWidget {
                                   selected: selectedDevice,
                       onSelect: provider.setSelectedDevice,
                       isMobile: isMobile,
+                                  serialToDisplayName: deviceSerialToName,
                     ),
                                 const SizedBox(height: 16),
                                 if (prediction != null) ...[
@@ -101,7 +142,14 @@ class _DashboardView extends StatelessWidget {
                     if (provider.errorMessage != null && latest == null)
                       _ErrorBanner(message: provider.errorMessage!),
                     if (latest != null) ...<Widget>[
-                      _MetricsGrid(latest: latest, isMobile: isMobile),
+                      _MetricsGrid(
+                        latest: latest,
+                        isMobile: isMobile,
+                        deviceDisplayName: latest.deviceId != null
+                            ? (deviceSerialToName?[latest.deviceId!] ??
+                                latest.deviceId!)
+                            : null,
+                      ),
                       SizedBox(height: isMobile ? 16 : 24),
                       _GaugeRow(latest: latest, isMobile: isMobile),
                       SizedBox(height: isMobile ? 16 : 24),
@@ -125,7 +173,11 @@ class _DashboardView extends StatelessWidget {
                                 'History',
                                   isMobile,
                                   trailing: GestureDetector(
-                                    onTap: () => _showHistoryDialog(context, provider),
+                                    onTap: () => _showHistoryDialog(
+                                        context,
+                                        provider,
+                                        deviceSerialToName: deviceSerialToName,
+                                      ),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(
@@ -623,27 +675,41 @@ class _ModernEnergyOptimizationCardState extends State<_ModernEnergyOptimization
   }
 }
 
-void _showHistoryDialog(BuildContext context, SensorProvider provider) {
+void _showHistoryDialog(
+  BuildContext context,
+  SensorProvider provider, {
+  Map<String, String>? deviceSerialToName,
+}) {
   final bool isMobile = MediaQuery.of(context).size.width < 600;
-  
+
   if (isMobile) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _HistoryDialogContent(provider: provider),
+        builder: (context) => _HistoryDialogContent(
+          provider: provider,
+          deviceSerialToName: deviceSerialToName,
+        ),
       ),
     );
   } else {
-  showDialog<void>(
-    context: context,
-    builder: (BuildContext context) => _HistoryDialogContent(provider: provider),
-  );
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) => _HistoryDialogContent(
+        provider: provider,
+        deviceSerialToName: deviceSerialToName,
+      ),
+    );
   }
 }
 
 class _HistoryDialogContent extends StatefulWidget {
-  const _HistoryDialogContent({required this.provider});
+  const _HistoryDialogContent({
+    required this.provider,
+    this.deviceSerialToName,
+  });
 
   final SensorProvider provider;
+  final Map<String, String>? deviceSerialToName;
 
   @override
   State<_HistoryDialogContent> createState() => _HistoryDialogContentState();
@@ -755,6 +821,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                       loadHistory();
                             },
                     isMobile: isMobile,
+                    serialToDisplayName: widget.deviceSerialToName,
                           ),
                   const SizedBox(height: 16),
                   // Date Selectors
@@ -831,7 +898,11 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
                               ),
                             );
                           }
-                          return _DetailedHistoryCard(reading: displayedRows[index], isMobile: isMobile);
+                          return _DetailedHistoryCard(
+                            reading: displayedRows[index],
+                            isMobile: isMobile,
+                            deviceSerialToName: widget.deviceSerialToName,
+                          );
                         },
                                 ),
                               ),
@@ -937,9 +1008,15 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
 }
 
 class _DetailedHistoryCard extends StatelessWidget {
-  const _DetailedHistoryCard({required this.reading, required this.isMobile});
+  const _DetailedHistoryCard({
+    required this.reading,
+    required this.isMobile,
+    this.deviceSerialToName,
+  });
+
   final SensorReading reading;
   final bool isMobile;
+  final Map<String, String>? deviceSerialToName;
 
   @override
   Widget build(BuildContext context) {
@@ -993,7 +1070,10 @@ class _DetailedHistoryCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    reading.deviceId ?? reading.basestationId,
+                    reading.deviceId != null
+                        ? (deviceSerialToName?[reading.deviceId!] ??
+                            reading.deviceId!)
+                        : reading.basestationId,
                     style: TextStyle(
                       fontSize: isMobile ? 9 : 11,
                       fontWeight: FontWeight.w800,
@@ -1124,6 +1204,7 @@ Widget _buildDeviceFilterBar({
   required String selected,
   required ValueChanged<String?> onSelect,
   required bool isMobile,
+  Map<String, String>? serialToDisplayName,
 }) {
   return SizedBox(
     height: 44, // Slightly taller for better touch targets
@@ -1136,10 +1217,13 @@ Widget _buildDeviceFilterBar({
       itemBuilder: (context, index) {
         final String id = options[index];
         final bool isSelected = selected == id;
-        
+        final String displayLabel = id == 'ALL'
+            ? 'All Locations'
+            : (serialToDisplayName?[id] ?? id);
+
         return ChoiceChip(
           label: Text(
-            id == 'ALL' ? 'All Locations' : id,
+            displayLabel,
             style: TextStyle(
               color: isSelected ? const Color(0xFF1B5E20) : Colors.grey.shade700,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
@@ -1621,10 +1705,15 @@ class _ModernPredictionCard extends StatelessWidget {
 }
 
 class _MetricsGrid extends StatelessWidget {
-  const _MetricsGrid({required this.latest, required this.isMobile});
+  const _MetricsGrid({
+    required this.latest,
+    required this.isMobile,
+    this.deviceDisplayName,
+  });
 
   final SensorReading latest;
   final bool isMobile;
+  final String? deviceDisplayName;
 
   @override
   Widget build(BuildContext context) {
@@ -1653,7 +1742,7 @@ class _MetricsGrid extends StatelessWidget {
           if (latest.deviceId != null)
             _MetricItem(
               title: 'Device',
-              value: latest.deviceId!,
+              value: deviceDisplayName ?? latest.deviceId!,
               icon: Icons.sensors,
               color: const Color(0xFFA5D6A7),
               bgColor: const Color(0xFFE8F5E9),

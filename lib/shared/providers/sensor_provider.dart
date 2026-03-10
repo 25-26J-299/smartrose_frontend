@@ -19,6 +19,7 @@ class SensorProvider extends ChangeNotifier {
   String? _errorMessage;
   Timer? _refreshTimer;
   String? _selectedDeviceId; // null = not set; 'ALL' = aggregate
+  String? _token; // JWT for authenticated EOSM API calls
 
   List<SensorReading> get readings => _readings;
   SensorReading? get latest => _latest;
@@ -79,6 +80,11 @@ class SensorProvider extends ChangeNotifier {
     unawaited(refresh(force: true));
   }
 
+  /// Set the JWT token for authenticated API calls (e.g. from AuthState).
+  void setToken(String? token) {
+    _token = token;
+  }
+
   double? get averageTemperature {
     final List<SensorReading> source = readingsForSelected;
     if (source.isEmpty) return null;
@@ -100,8 +106,8 @@ class SensorProvider extends ChangeNotifier {
   }
 
   Future<void> startAutoRefresh({Duration interval = const Duration(seconds: 15)}) async {
+    if (_refreshTimer != null) return; // already running
     await refresh(force: true);
-    _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(interval, (_) => refresh(force: true));
   }
 
@@ -117,6 +123,7 @@ class SensorProvider extends ChangeNotifier {
       final String? devId = _selectedDeviceId == 'ALL' ? null : _selectedDeviceId;
       final Map<String, dynamic>? latestWithPrediction = await _api.fetchLatestWithPrediction(
         deviceId: devId,
+        token: _token,
       );
 
       if (latestWithPrediction != null) {
@@ -141,7 +148,7 @@ class SensorProvider extends ChangeNotifier {
 
       // Always fetch history for trends (regardless of latest-with-prediction result)
       final List<SensorReading> history =
-          await _api.fetchHistory(limit: historyLimit);
+          await _api.fetchHistory(limit: historyLimit, token: _token);
       if (history.isNotEmpty) {
         _readings = history;
         // Update _latest if we got it from latest-with-prediction, otherwise use first from history
@@ -211,6 +218,7 @@ class SensorProvider extends ChangeNotifier {
         limit: fetchLimit,
         startDate: utcStartDate,
         endDate: utcEndDate,
+        token: _token,
       );
 
       // Client-side filtering by date in Sri Lanka timezone
