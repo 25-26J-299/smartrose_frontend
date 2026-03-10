@@ -276,8 +276,38 @@ class _InmRecommendationsTabState extends State<InmRecommendationsTab>
         final growthStage = results[1] as String;
         final weather = results.length > 2 ? results[2] as WeatherModel? : null;
 
+        if (!status.hasSensorData) {
+          return _buildNoDataState(theme);
+        }
+
         return _buildContent(theme, status, growthStage, weather);
       },
+    );
+  }
+
+  Widget _buildNoDataState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sensors_off,
+              size: 64,
+              color: theme.colorScheme.onSurface.withOpacity(0.35),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No data available',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

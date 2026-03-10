@@ -113,6 +113,13 @@ class LiveSensorSnapshot extends StatelessWidget {
               color: Colors.brown,
             ),
             _CompactSensorCard(
+              icon: Icons.thermostat_outlined,
+              label: 'Soil Temp',
+              value: reading.soilTemp.toStringAsFixed(1),
+              unit: '°C',
+              color: Colors.deepOrange,
+            ),
+            _CompactSensorCard(
               icon: Icons.thermostat,
               label: 'Air Temp',
               value: reading.airTemp.toStringAsFixed(1),

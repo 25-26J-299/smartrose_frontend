@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/inm_action_history.dart';
+import '../../models/inm_status.dart';
 import '../../services/inm_api_service.dart';
 
 class InmHistoryTab extends StatefulWidget {
@@ -30,6 +31,7 @@ class _InmHistoryTabState extends State<InmHistoryTab>
   final InmApiService _apiService = InmApiService();
 
   List<InmActionHistory>? _actionHistory;
+  InmStatus? _status;
   bool _isLoadingActions = true;
   DateTime? _selectedDate = DateTime.now();
   
@@ -80,7 +82,10 @@ class _InmHistoryTabState extends State<InmHistoryTab>
       });
     }
 
-    await _loadActionHistory();
+    await Future.wait([
+      _loadActionHistory(),
+      _loadStatus(),
+    ]);
   }
 
   Future<void> _loadActionHistory() async {
@@ -103,10 +108,66 @@ class _InmHistoryTabState extends State<InmHistoryTab>
     }
   }
 
+  Future<void> _loadStatus() async {
+    try {
+      final status = await _apiService.fetchStatus(widget.deviceId, widget.token);
+      if (mounted) {
+        setState(() {
+          _status = status;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _status = null;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
+
+    if (!_isLoadingActions && _status != null && !_status!.hasSensorData) {
+      return RefreshIndicator(
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  color:
+                      theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.sensors_off,
+                      size: 48,
+                      color: theme.colorScheme.onSurface.withOpacity(0.3),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No data available',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
 
     return RefreshIndicator(
       onRefresh: _loadData,

@@ -36,7 +36,7 @@ class InmSensorReading {
       deviceId: json['device_id']?.toString() ?? 'unknown',
       timestamp: _parseTimestamp(json['timestamp']),
       soilMoisture: _parseDouble(json['soil_moisture']),
-      soilTemp: _parseDouble(json['soil_temp']),
+      soilTemp: _parseDouble(json['soil_temp'] ?? json['soil_temperature']),
       airTemp: _parseDouble(json['air_temp']),
       airHum: _parseDouble(json['air_hum']),
       ec: _parseDouble(json['ec']),

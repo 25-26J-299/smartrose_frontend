@@ -385,7 +385,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: TextField(
           controller: _searchController,
           decoration: InputDecoration(
-            hintText: 'Search components…',
+            hintText: 'Search SmartRose Services',
             hintStyle: TextStyle(
               color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
               fontSize: 16,
@@ -409,16 +409,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       });
                     },
                   )
-                : IconButton(
-                    icon: Icon(
-                      Icons.mic_rounded,
-                      color: scheme.primary,
-                      size: 24,
-                    ),
-                    onPressed: () {
-                      // Voice search functionality
-                    },
-                  ),
+                : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide.none,

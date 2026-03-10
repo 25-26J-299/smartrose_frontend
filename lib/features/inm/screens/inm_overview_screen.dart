@@ -298,6 +298,9 @@ class _InmOverviewScreenState extends State<InmOverviewScreen> {
       );
     }
 
+    final hasDeviceData =
+        (_currentStatus?.hasSensorData ?? false) || _allReadings.isNotEmpty;
+
     return Stack(
       children: [
         SingleChildScrollView(
@@ -316,6 +319,10 @@ class _InmOverviewScreenState extends State<InmOverviewScreen> {
                 const SizedBox(height: 16),
               ],
 
+              if (!hasDeviceData) ...[
+                _buildNoDataState(theme),
+                const SizedBox(height: 20),
+              ] else ...[
               // Hero ML Insight Card
               if (_currentStatus != null)
                 HeroMlInsightCard(status: _currentStatus!),
@@ -336,10 +343,39 @@ class _InmOverviewScreenState extends State<InmOverviewScreen> {
                 ),
 
               const SizedBox(height: 20),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildNoDataState(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.sensors_off,
+              size: 48,
+              color: theme.colorScheme.onSurface.withOpacity(0.35),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No data available',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
