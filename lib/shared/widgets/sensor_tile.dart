@@ -14,7 +14,8 @@ class SensorTile extends StatelessWidget {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final DateTime ts = reading.receivedAt ?? reading.timestamp;
     final String subtitle =
-        '${DateFormat('MMM d, HH:mm').format(ts)} • ${reading.basestationId}${reading.greenhouseId != null ? ' · ${reading.greenhouseId}' : ''}';
+        '${DateFormat('MMM d, HH:mm').format(ts)}'
+        '${reading.basestationId.isNotEmpty ? ' · ${reading.basestationId}' : ''}';
 
     return Card(
       elevation: 0,
@@ -40,7 +41,11 @@ class SensorTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Base station ${reading.basestationId}',
+                        reading.deviceId != null
+                            ? 'Device ${reading.deviceId}'
+                            : reading.basestationId.isNotEmpty
+                                ? 'Base Station ${reading.basestationId}'
+                                : 'EOSM Reading',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 4),

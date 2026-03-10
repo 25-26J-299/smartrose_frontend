@@ -8,43 +8,43 @@ import '../services/sensor_api.dart';
 
 // Start of EOSM
 class SensorProvider extends ChangeNotifier {
-  SensorProvider({SensorApi? api, this.basestationId = 'basestation_01'})
-      : _api = api ?? SensorApi(defaultBasestationId: basestationId);
+  SensorProvider({SensorApi? api}) : _api = api ?? SensorApi();
 
   final SensorApi _api;
-  final String basestationId;
 
-  List<SensorReading> _readings = <SensorReading>[]; // all readings (all greenhouses)
+  List<SensorReading> _readings = <SensorReading>[]; // all readings (all devices)
   SensorReading? _latest;
   EosmStressPrediction? _latestPrediction;
   bool _isLoading = false;
   String? _errorMessage;
   Timer? _refreshTimer;
-  String? _selectedGreenhouseId; // null = not set; 'ALL' = aggregate
+  String? _selectedDeviceId; // null = not set; 'ALL' = aggregate
 
   List<SensorReading> get readings => _readings;
   SensorReading? get latest => _latest;
   EosmStressPrediction? get latestPrediction => _latestPrediction;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  String? get selectedGreenhouseId => _selectedGreenhouseId;
+  String? get selectedDeviceId => _selectedDeviceId;
 
-  /// Unique sorted greenhouse ids from loaded data.
-  List<String> get availableGreenhouseIds {
+  /// Unique sorted device serials from loaded readings (e.g. SR-EOSM-20250310).
+  List<String> get availableDeviceIds {
     final Set<String> ids = _readings
-        .map((SensorReading r) => r.greenhouseId)
+        .map((SensorReading r) => r.deviceId)
         .whereType<String>()
+        .where((String id) => id.isNotEmpty)
         .toSet();
     final List<String> sorted = ids.toList()..sort();
     return sorted;
   }
 
-  /// Map of greenhouseId -> basestationId (first seen)
-  Map<String, String?> get greenhouseBaseStations {
+  /// Map of deviceId -> base station serial (first seen).
+  Map<String, String?> get deviceBaseStations {
     final Map<String, String?> map = <String, String?>{};
     for (final SensorReading r in _readings) {
-      if ((r.greenhouseId ?? '').isNotEmpty && !map.containsKey(r.greenhouseId)) {
-        map[r.greenhouseId!] = r.basestationId;
+      final String? dId = r.deviceId;
+      if ((dId ?? '').isNotEmpty && !map.containsKey(dId)) {
+        map[dId!] = r.basestationId;
       }
     }
     return map;
@@ -53,11 +53,11 @@ class SensorProvider extends ChangeNotifier {
   /// Latest reading respecting selection. If "ALL" or unset, uses overall latest.
   SensorReading? get latestForSelected {
     if (_readings.isEmpty) return null;
-    if (_selectedGreenhouseId == 'ALL' || _selectedGreenhouseId == null) {
+    if (_selectedDeviceId == 'ALL' || _selectedDeviceId == null) {
       return _latest ?? _readings.first;
     }
     return _readings.firstWhere(
-      (SensorReading r) => r.greenhouseId == _selectedGreenhouseId,
+      (SensorReading r) => r.deviceId == _selectedDeviceId,
       orElse: () => _latest ?? _readings.first,
     );
   }
@@ -65,18 +65,17 @@ class SensorProvider extends ChangeNotifier {
   /// History respecting selection. "ALL" returns capped list for UI.
   List<SensorReading> get readingsForSelected {
     if (_readings.isEmpty) return <SensorReading>[];
-    if (_selectedGreenhouseId == 'ALL' || _selectedGreenhouseId == null) {
+    if (_selectedDeviceId == 'ALL' || _selectedDeviceId == null) {
       return _readings.take(50).toList();
     }
     return _readings
-        .where((SensorReading r) => r.greenhouseId == _selectedGreenhouseId)
+        .where((SensorReading r) => r.deviceId == _selectedDeviceId)
         .take(50)
         .toList();
   }
 
-  void setSelectedGreenhouse(String? id) {
-    _selectedGreenhouseId = (id == null || id.isEmpty) ? 'ALL' : id;
-    // Refresh data for the newly selected greenhouse
+  void setSelectedDevice(String? id) {
+    _selectedDeviceId = (id == null || id.isEmpty) ? 'ALL' : id;
     unawaited(refresh(force: true));
   }
 
@@ -115,11 +114,9 @@ class SensorProvider extends ChangeNotifier {
 
     try {
       // Fetch latest sensor data and prediction together
-      // This ensures we always get the absolute latest reading from the database
-      final String? ghId = _selectedGreenhouseId == 'ALL' ? null : _selectedGreenhouseId;
+      final String? devId = _selectedDeviceId == 'ALL' ? null : _selectedDeviceId;
       final Map<String, dynamic>? latestWithPrediction = await _api.fetchLatestWithPrediction(
-        basestationId: null, // Let backend find the latest regardless of basestation
-        greenhouseId: ghId,
+        deviceId: devId,
       );
 
       if (latestWithPrediction != null) {
@@ -144,7 +141,7 @@ class SensorProvider extends ChangeNotifier {
 
       // Always fetch history for trends (regardless of latest-with-prediction result)
       final List<SensorReading> history =
-          await _api.fetchHistory(sensorId: null, limit: historyLimit);
+          await _api.fetchHistory(limit: historyLimit);
       if (history.isNotEmpty) {
         _readings = history;
         // Update _latest if we got it from latest-with-prediction, otherwise use first from history
@@ -165,8 +162,8 @@ class SensorProvider extends ChangeNotifier {
         }
       }
 
-      // Initialize default selection to 'ALL' as requested
-      _selectedGreenhouseId ??= 'ALL';
+      // Initialize default selection to 'ALL'
+      _selectedDeviceId ??= 'ALL';
     } catch (err) {
       debugPrint('SensorProvider.refresh error: $err');
       _errorMessage = 'Unable to load sensor data. Please try again.';
@@ -181,7 +178,7 @@ class SensorProvider extends ChangeNotifier {
   Future<List<SensorReading>> fetchHistoryForDateRange({
     DateTime? startDate,
     DateTime? endDate,
-    String? greenhouseId,
+    String? deviceId,
     int limit = 1000,
   }) async {
     try {
@@ -209,10 +206,8 @@ class SensorProvider extends ChangeNotifier {
         utcEndDate = DateTime(actualEndDate.year, actualEndDate.month, actualEndDate.day);
       }
 
-      // Backend has a maximum limit of 2000, so cap at that
       final int fetchLimit = limit.clamp(1, 2000);
       final List<SensorReading> history = await _api.fetchHistory(
-        sensorId: null,
         limit: fetchLimit,
         startDate: utcStartDate,
         endDate: utcEndDate,
@@ -272,9 +267,9 @@ class SensorProvider extends ChangeNotifier {
         }).toList();
       }
 
-      // Filter by greenhouse
-      if (greenhouseId != null && greenhouseId != 'ALL') {
-        filtered = filtered.where((SensorReading r) => r.greenhouseId == greenhouseId).toList();
+      // Filter by device serial
+      if (deviceId != null && deviceId != 'ALL') {
+        filtered = filtered.where((SensorReading r) => r.deviceId == deviceId).toList();
       }
       
       // Sort by timestamp descending (newest first)

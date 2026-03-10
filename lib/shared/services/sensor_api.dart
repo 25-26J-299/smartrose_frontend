@@ -5,37 +5,29 @@ import '../models/sensor_reading.dart';
 import 'api_service.dart';
 
 class SensorApi {
-  SensorApi({ApiService? apiService, this.defaultBasestationId = 'basestation_01'})
-      : _apiService = apiService ?? ApiService();
+  SensorApi({ApiService? apiService}) : _apiService = apiService ?? ApiService();
 
   final ApiService _apiService;
-  final String defaultBasestationId;
 
-  Future<SensorReading?> fetchLatest({String? sensorId}) async {
-    // No latest endpoint; use list with limit=1 (already sorted newest-first server-side).
-    final List<SensorReading> list = await fetchHistory(
-      limit: 1,
-      sensorId: sensorId,
-    );
+  Future<SensorReading?> fetchLatest({String? deviceId}) async {
+    final List<SensorReading> list = await fetchHistory(limit: 1, deviceId: deviceId);
     return list.isNotEmpty ? list.first : null;
   }
 
   Future<List<SensorReading>> fetchHistory({
     int limit = 100,
-    String? sensorId,
+    String? deviceId,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    // Format date as YYYY-MM-DD using the date's year/month/day (no timezone conversion for date-only queries)
     String? formatDate(DateTime? date) {
       if (date == null) return null;
-      // Use the date's local year/month/day to avoid timezone shifts
       return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
     }
     
     final Map<String, String> query = <String, String>{
       'limit': '$limit',
-      if (sensorId != null) 'basestationId': sensorId,
+      if (deviceId != null) 'deviceId': deviceId,
       if (startDate != null) 'startDate': formatDate(startDate)!,
       if (endDate != null) 'endDate': formatDate(endDate)!,
     };
@@ -60,13 +52,11 @@ class SensorApi {
 
   /// Fetch latest sensor reading with its ML prediction
   Future<Map<String, dynamic>?> fetchLatestWithPrediction({
-    String? basestationId,
-    String? greenhouseId,
+    String? deviceId,
   }) async {
     // Start of EOSM
     final Map<String, String> query = <String, String>{};
-    if (basestationId != null) query['basestationId'] = basestationId;
-    if (greenhouseId != null) query['greenhouseId'] = greenhouseId;
+    if (deviceId != null) query['deviceId'] = deviceId;
 
     final Uri uri = _apiService.uri('/eosm-data/latest-with-prediction', query: query);
 

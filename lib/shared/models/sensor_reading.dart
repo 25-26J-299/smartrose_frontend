@@ -20,7 +20,8 @@ class SensorReading {
     required this.timestamp,
     required this.temperature,
     required this.humidity,
-    this.greenhouseId,
+    this.deviceId,
+    this.locationId,
     this.id,
     this.receivedAt,
     this.uvRaw,
@@ -32,8 +33,12 @@ class SensorReading {
   });
 
   final String? id;
+  /// Base station serial (e.g. SR-BS-20251003), sourced from base_station_serial.
   final String basestationId;
-  final String? greenhouseId;
+  /// Human-readable device serial (e.g. SR-EOSM-20250310).
+  final String? deviceId;
+  /// Location ObjectId from the backend.
+  final String? locationId;
   final DateTime timestamp; // UTC timestamp
   final DateTime? receivedAt; // UTC timestamp
   final double temperature;
@@ -47,26 +52,38 @@ class SensorReading {
 
   DateTime get displayTime => receivedAt ?? timestamp;
 
+  /// Returns the best human-readable device/location label for display.
+  String get displayDeviceLabel => deviceId ?? basestationId;
+
   factory SensorReading.fromJson(Map<String, dynamic> json) {
     DateTime? parseDate(dynamic value) {
       if (value == null) return null;
       if (value is int) {
-        // seconds epoch - keep as UTC
         return DateTime.fromMillisecondsSinceEpoch(value * 1000, isUtc: true);
       }
       if (value is num) {
         return DateTime.fromMillisecondsSinceEpoch(value.toInt(), isUtc: true);
       }
       if (value is String && value.isNotEmpty) {
-        final DateTime? parsed = DateTime.tryParse(value);
-        if (parsed != null) {
-          // Backend now sends IST (Sri Lankan time) directly, not UTC
-          // So we treat the parsed datetime as local time (IST)
-          // No timezone conversion needed - backend already did it
-          return parsed;
-        }
+        return DateTime.tryParse(value);
       }
       return null;
+    }
+
+    // reading_time_slst is stored as an ISO string with +05:30 offset,
+    // e.g. "2026-03-10T14:39:43+05:30". DateTime.tryParse converts this to UTC
+    // (09:09:43Z), so we add the +05:30 offset back to recover the local wall
+    // clock time for display.
+    DateTime? parseSLST(dynamic value) {
+      if (value is! String || value.isEmpty) return null;
+      final DateTime? parsed = DateTime.tryParse(value);
+      if (parsed == null) return null;
+      // If the string carries an explicit offset, parsed is UTC. Shift it to
+      // the SLST wall-clock value so the UI shows 14:39 not 09:09.
+      if (value.contains('+') || value.endsWith('Z')) {
+        return parsed.toUtc().add(const Duration(hours: 5, minutes: 30));
+      }
+      return parsed;
     }
 
     double? toDouble(dynamic value) {
@@ -85,9 +102,16 @@ class SensorReading {
     final DateTime ts =
         parseDate(json['timestamp']) ?? DateTime.now().toUtc();
 
+    // Prefer reading_time_slst (Sri Lanka time set by backend) for display.
+    // Fall back to received_at, then raw timestamp.
+    final DateTime? slstTime = parseSLST(json['reading_time_slst']);
+    final DateTime? receivedAtTime = parseDate(json['received_at'] ?? json['receivedAt']);
+    final DateTime? displayTs = slstTime ?? receivedAtTime;
+
     return SensorReading(
       id: (json['id'] ?? json['_id'])?.toString(),
-      basestationId: (json['basestationId'] ??
+      basestationId: (json['base_station_serial'] ??
+              json['basestationId'] ??
               json['basestation_id'] ??
               json['baseStationId'] ??
               json['sensor_id'] ??
@@ -95,13 +119,10 @@ class SensorReading {
               json['sensorID'] ??
               '')
           .toString(),
-      greenhouseId: (json['greenhouseId'] ??
-              json['greenhouse_id'] ??
-              json['greenhouseID'] ??
-              json['greenhouseid'])
-          ?.toString(),
+      deviceId: (json['deviceId'] ?? json['device_id'])?.toString(),
+      locationId: (json['location_id'] ?? json['locationId'])?.toString(),
       timestamp: ts,
-      receivedAt: parseDate(json['received_at'] ?? json['receivedAt']),
+      receivedAt: displayTs,
       temperature: toDouble(json['temperature']) ?? 0,
       humidity: toDouble(json['humidity']) ?? 0,
       uvRaw: toInt(json['uv_raw'] ?? json['uvRaw']),
@@ -116,7 +137,8 @@ class SensorReading {
   Map<String, dynamic> toJson() => <String, dynamic>{
         'id': id,
         'basestationId': basestationId,
-        if (greenhouseId != null) 'greenhouseId': greenhouseId,
+        if (deviceId != null) 'device_id': deviceId,
+        if (locationId != null) 'location_id': locationId,
         'timestamp': timestamp.toIso8601String(),
         if (receivedAt != null) 'received_at': receivedAt!.toIso8601String(),
         'temperature': temperature,

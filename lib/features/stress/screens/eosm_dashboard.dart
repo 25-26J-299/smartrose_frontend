@@ -55,11 +55,11 @@ class _DashboardView extends StatelessWidget {
         final SensorReading? latest = provider.latestForSelected;
         final EosmStressPrediction? prediction = provider.latestPrediction;
         final List<SensorReading> history = provider.readingsForSelected;
-        final List<String> greenhouseOptions = <String>[
+        final List<String> deviceOptions = <String>[
           'ALL',
-          ...provider.availableGreenhouseIds,
+          ...provider.availableDeviceIds,
         ];
-        final String selectedGh = provider.selectedGreenhouseId ?? 'ALL';
+        final String selectedDevice = provider.selectedDeviceId ?? 'ALL';
 
         if (provider.isLoading && latest == null) {
           return const Center(child: CircularProgressIndicator());
@@ -81,10 +81,10 @@ class _DashboardView extends StatelessWidget {
                 return ListView(
                               padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
                   children: <Widget>[
-                                _buildGreenhouseFilterBar(
-                                  options: greenhouseOptions,
-                                  selected: selectedGh,
-                      onSelect: provider.setSelectedGreenhouse,
+                                _buildDeviceFilterBar(
+                                  options: deviceOptions,
+                                  selected: selectedDevice,
+                      onSelect: provider.setSelectedDevice,
                       isMobile: isMobile,
                     ),
                                 const SizedBox(height: 16),
@@ -672,7 +672,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
     final DateTime todayStart = DateTime(now.year, now.month, now.day);
     startDate = todayStart;
     endDate = todayStart.add(const Duration(days: 1));
-    selectedGh = widget.provider.selectedGreenhouseId ?? 'ALL';
+    selectedGh = widget.provider.selectedDeviceId ?? 'ALL'; // device serial or 'ALL'
     
     // Load initial data for today
     WidgetsBinding.instance.addPostFrameCallback((_) => loadHistory());
@@ -691,7 +691,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
     final List<SensorReading> fetched = await widget.provider.fetchHistoryForDateRange(
       startDate: startDate,
       endDate: endDate,
-      greenhouseId: selectedGh == 'ALL' ? null : selectedGh,
+      deviceId: selectedGh == 'ALL' ? null : selectedGh,
       limit: 2000,
     );
     if (mounted) {
@@ -718,7 +718,7 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
   Widget build(BuildContext context) {
     final List<String> ghOptions = <String>[
       'ALL',
-      ...widget.provider.availableGreenhouseIds,
+      ...widget.provider.availableDeviceIds,
     ];
     final bool isMobile = MediaQuery.of(context).size.width < 600;
     final theme = Theme.of(context);
@@ -746,8 +746,8 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
               ),
               child: Column(
                 children: [
-                  // Greenhouse Selector
-                  _buildGreenhouseFilterBar(
+                  // Device Selector
+                  _buildDeviceFilterBar(
                     options: ghOptions,
                     selected: selectedGh,
                     onSelect: (val) {
@@ -985,7 +985,7 @@ class _DetailedHistoryCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (reading.greenhouseId != null)
+              if (reading.deviceId != null || reading.basestationId.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -993,14 +993,14 @@ class _DetailedHistoryCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    reading.greenhouseId!,
+                    reading.deviceId ?? reading.basestationId,
                     style: TextStyle(
-                      fontSize: isMobile ? 9 : 11, 
-                      fontWeight: FontWeight.w800, 
-                      color: const Color(0xFF1B5E20)
-                                      ),
-                                    ),
-                                  ),
+                      fontSize: isMobile ? 9 : 11,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1B5E20),
+                    ),
+                  ),
+                ),
             ],
           ),
           const Padding(
@@ -1119,7 +1119,7 @@ String _formatDateTime(DateTime dt, {bool isMobile = false}) {
   }
 }
 
-Widget _buildGreenhouseFilterBar({
+Widget _buildDeviceFilterBar({
   required List<String> options,
   required String selected,
   required ValueChanged<String?> onSelect,
@@ -1139,7 +1139,7 @@ Widget _buildGreenhouseFilterBar({
         
         return ChoiceChip(
           label: Text(
-            id == 'ALL' ? 'All Greenhouses' : id,
+            id == 'ALL' ? 'All Locations' : id,
             style: TextStyle(
               color: isSelected ? const Color(0xFF1B5E20) : Colors.grey.shade700,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
@@ -1650,13 +1650,21 @@ class _MetricsGrid extends StatelessWidget {
         color: const Color(0xFFF48FB1), // Soft Rose (200)
         bgColor: const Color(0xFFFCE4EC), // Rose 50
           ),
-          if (latest.greenhouseId != null)
+          if (latest.deviceId != null)
             _MetricItem(
-              title: 'Greenhouse',
-              value: latest.greenhouseId!,
-              icon: Icons.local_florist,
-          color: const Color(0xFFA5D6A7), // Soft Green (200)
-          bgColor: const Color(0xFFE8F5E9), // Green 50
+              title: 'Device',
+              value: latest.deviceId!,
+              icon: Icons.sensors,
+              color: const Color(0xFFA5D6A7),
+              bgColor: const Color(0xFFE8F5E9),
+            )
+          else if (latest.basestationId.isNotEmpty)
+            _MetricItem(
+              title: 'Base Station',
+              value: latest.basestationId,
+              icon: Icons.router,
+              color: const Color(0xFFA5D6A7),
+              bgColor: const Color(0xFFE8F5E9),
             ),
         ];
 
