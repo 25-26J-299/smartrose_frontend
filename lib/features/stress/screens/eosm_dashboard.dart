@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../core/auth/auth_state.dart';
 import '../../../shared/models/sensor_reading.dart';
 import '../../../shared/models/eosm_stress_prediction.dart';
+import '../../../shared/models/eosm_energy_optimization.dart';
 import '../../../shared/providers/sensor_provider.dart';
 import '../../../shared/widgets/stress_gauge.dart';
 import '../../../shared/widgets/trend_chart.dart';
@@ -136,7 +137,10 @@ class _DashboardView extends StatelessWidget {
                                     lastUpdated: latest?.displayTime,
                                   ),
                                   const SizedBox(height: 16),
-                                  _ModernEnergyOptimizationCard(isMobile: isMobile),
+                                  _ModernEnergyOptimizationCard(
+                                    isMobile: isMobile,
+                                    energyOptimization: provider.latestEnergyOptimization,
+                                  ),
                     SizedBox(height: isMobile ? 16 : 24),
                                 ],
                     if (provider.errorMessage != null && latest == null)
@@ -271,8 +275,12 @@ class _RecentActivityLog extends StatelessWidget {
 }
 
 class _ModernEnergyOptimizationCard extends StatefulWidget {
-  const _ModernEnergyOptimizationCard({required this.isMobile});
+  const _ModernEnergyOptimizationCard({
+    required this.isMobile,
+    this.energyOptimization,
+  });
   final bool isMobile;
+  final EosmEnergyOptimization? energyOptimization;
 
   @override
   State<_ModernEnergyOptimizationCard> createState() => _ModernEnergyOptimizationCardState();
@@ -342,16 +350,18 @@ class _ModernEnergyOptimizationCardState extends State<_ModernEnergyOptimization
                 ),
                 Row(
                   children: [
-                    // Pill showing total saving
+                    // Pill showing total saving (from backend or placeholder)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1B5E20),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        '≈38% SAVING',
-                        style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                      child: Text(
+                        widget.energyOptimization != null
+                            ? '≈${widget.energyOptimization!.estimatedEnergySaving} SAVING'
+                            : '— SAVING',
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -448,14 +458,15 @@ class _ModernEnergyOptimizationCardState extends State<_ModernEnergyOptimization
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final double cardWidth = (constraints.maxWidth - 12) / 2;
+                    final EosmEnergyOptimization? e = widget.energyOptimization;
                     return Wrap(
                       spacing: 12,
                       runSpacing: 12,
                       children: [
-                        SizedBox(width: cardWidth, child: _buildActuatorChip('Fan Level', 'HIGH', Icons.mode_fan_off_rounded, const Color(0xFFF44336))),
-                        SizedBox(width: cardWidth, child: _buildActuatorChip('Water Pump', 'LOW', Icons.water_rounded, const Color(0xFFA5D6A7))),
-                        SizedBox(width: cardWidth, child: _buildActuatorChip('AC Level', 'MEDIUM', Icons.ac_unit_rounded, const Color(0xFFFFCC80))),
-                        SizedBox(width: cardWidth, child: _buildActuatorChip('UV Shade', 'FULL', Icons.wb_shade_rounded, const Color(0xFFF44336))),
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('Fan Level', e?.fanLevel ?? '—', Icons.mode_fan_off_rounded, const Color(0xFFF44336))),
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('Water Pump', e?.waterPump ?? '—', Icons.water_rounded, const Color(0xFFA5D6A7))),
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('AC Level', e?.acLevel ?? '—', Icons.ac_unit_rounded, const Color(0xFFFFCC80))),
+                        SizedBox(width: cardWidth, child: _buildActuatorChip('UV Lights', e?.uvLightIntensity ?? '—', Icons.wb_sunny_rounded, const Color(0xFFF44336))),
                       ],
                     );
                   },
@@ -468,8 +479,8 @@ class _ModernEnergyOptimizationCardState extends State<_ModernEnergyOptimization
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border(
-                      left: BorderSide(color: const Color(0xFF1B5E20), width: 4),
+                    border: const Border(
+                      left: BorderSide(color: Color(0xFF1B5E20), width: 4),
                     ),
                   ),
                   child: Row(
@@ -477,11 +488,11 @@ class _ModernEnergyOptimizationCardState extends State<_ModernEnergyOptimization
                     children: [
                       const Icon(Icons.psychology_rounded, color: Color(0xFF1B5E20), size: 20),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'AI REASONING',
                               style: TextStyle(
                                 fontSize: 9,
@@ -490,10 +501,12 @@ class _ModernEnergyOptimizationCardState extends State<_ModernEnergyOptimization
                                 letterSpacing: 0.5,
                               ),
                             ),
-                            SizedBox(height: 4),
+                            const SizedBox(height: 4),
                             Text(
-                              'Extreme Humidity (91.2%) detected. To prevent fungal stress, the AI has Reduced Water and prioritized Max Fans for air circulation. AC is set to MEDIUM for essential dehumidification, while FULL SHADING blocks solar heat, maintaining safety with 35% efficiency.',
-                              style: TextStyle(
+                              widget.energyOptimization?.reasoning.isNotEmpty == true
+                                  ? widget.energyOptimization!.reasoning
+                                  : 'No energy optimization reasoning available yet.',
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.black87,
                                 fontWeight: FontWeight.w600,

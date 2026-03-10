@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/sensor_reading.dart';
 import '../models/eosm_stress_prediction.dart';
+import '../models/eosm_energy_optimization.dart';
 import '../services/sensor_api.dart';
 
 // Start of EOSM
@@ -15,6 +16,7 @@ class SensorProvider extends ChangeNotifier {
   List<SensorReading> _readings = <SensorReading>[]; // all readings (all devices)
   SensorReading? _latest;
   EosmStressPrediction? _latestPrediction;
+  EosmEnergyOptimization? _latestEnergyOptimization;
   bool _isLoading = false;
   String? _errorMessage;
   Timer? _refreshTimer;
@@ -24,6 +26,7 @@ class SensorProvider extends ChangeNotifier {
   List<SensorReading> get readings => _readings;
   SensorReading? get latest => _latest;
   EosmStressPrediction? get latestPrediction => _latestPrediction;
+  EosmEnergyOptimization? get latestEnergyOptimization => _latestEnergyOptimization;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String? get selectedDeviceId => _selectedDeviceId;
@@ -144,6 +147,16 @@ class SensorProvider extends ChangeNotifier {
           _latestPrediction = null;
           debugPrint('SensorProvider: No prediction in response');
         }
+
+        // Update energy optimization from the response
+        final dynamic energyData = latestWithPrediction['energy_optimization'];
+        if (energyData != null) {
+          _latestEnergyOptimization = EosmEnergyOptimization.fromJson(
+            energyData as Map<String, dynamic>,
+          );
+        } else {
+          _latestEnergyOptimization = null;
+        }
       }
 
       // Always fetch history for trends (regardless of latest-with-prediction result)
@@ -175,6 +188,7 @@ class SensorProvider extends ChangeNotifier {
       debugPrint('SensorProvider.refresh error: $err');
       _errorMessage = 'Unable to load sensor data. Please try again.';
       _latestPrediction = null;
+      _latestEnergyOptimization = null;
     } finally {
       _isLoading = false;
       notifyListeners();
