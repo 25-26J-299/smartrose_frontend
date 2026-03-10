@@ -193,6 +193,29 @@ class AuthService {
     }
   }
 
+  /// Fetch the logged-in user's base stations (EOSM gateways).
+  Future<List<Map<String, dynamic>>> fetchMyBaseStations(String token) async {
+    try {
+      final http.Response response = await _client
+          .get(
+            _uri('/auth/my-base-stations'),
+            headers: <String, String>{'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Map<String, dynamic> body =
+            jsonDecode(response.body) as Map<String, dynamic>;
+        final List<dynamic> raw =
+            body['base_stations'] as List<dynamic>? ?? <dynamic>[];
+        return raw.cast<Map<String, dynamic>>();
+      }
+      return <Map<String, dynamic>>[];
+    } catch (e) {
+      debugPrint('fetchMyBaseStations error: $e');
+      return <Map<String, dynamic>>[];
+    }
+  }
+
   /// Fetch the logged-in user's assigned devices.
   ///
   /// Pass [deviceType] to filter by type (e.g. 'INM', 'EOSM', 'EDAS', 'FM').

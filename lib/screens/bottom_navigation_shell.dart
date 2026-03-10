@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'dashboard_screen.dart';
-import 'insights_screen.dart';
-import 'menu_screen.dart';
+import 'profile_screen.dart';
 import 'notification_screen.dart';
 
 class BottomNavigationShell extends StatefulWidget {
@@ -16,14 +15,12 @@ class _BottomNavigationShellState extends State<BottomNavigationShell> {
   int _currentIndex = 0;
   final List<Widget> _screens = const <Widget>[
     DashboardScreen(),
-    InsightsScreen(),
     NotificationScreen(),
-    MenuScreen(),
+    ProfileScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Hide AppBar for all screens (Dashboard, Insights, Notifications, and Menu)
     return Scaffold(
       appBar: null,
       body: IndexedStack(index: _currentIndex, children: _screens),
@@ -41,20 +38,14 @@ class _BottomNavigationShellState extends State<BottomNavigationShell> {
             label: 'Dashboard',
           ),
           NavigationDestination(
-            icon: Icon(Icons.analytics_outlined),
-            selectedIcon: Icon(Icons.analytics),
-            label: 'Insights',
-          ),
-          
-          NavigationDestination(
             icon: Icon(Icons.notifications_outlined),
             selectedIcon: Icon(Icons.notifications),
             label: 'Notifications',
           ),
           NavigationDestination(
-            icon: Icon(Icons.menu),
-            selectedIcon: Icon(Icons.menu),
-            label: 'Menu',
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

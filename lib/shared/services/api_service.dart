@@ -40,6 +40,37 @@ class ApiService {
     return getUri(uri(path, query: query), headers: headers, token: token);
   }
 
+  Future<http.Response> delete(
+    String path, {
+    Map<String, String>? headers,
+    String? token,
+  }) {
+    final Map<String, String> resolvedHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      ...?headers,
+    };
+    return _client.delete(uri(path), headers: resolvedHeaders);
+  }
+
+  Future<http.Response> patch(
+    String path, {
+    Map<String, String>? headers,
+    String? token,
+    Object? body,
+  }) {
+    final Map<String, String> resolvedHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      ...?headers,
+    };
+    return _client.patch(
+      uri(path),
+      headers: resolvedHeaders,
+      body: body != null ? jsonEncode(body) : null,
+    );
+  }
+
   Map<String, dynamic>? decodeJson(http.Response response) {
     if (response.body.isEmpty) return null;
     final dynamic body = jsonDecode(response.body);

@@ -4,18 +4,8 @@ import 'package:provider/provider.dart';
 import 'dart:async';
 
 import '../core/auth/auth_state.dart';
-import '../features/inm/services/inm_api_service.dart';
-import '../features/inm/models/inm_status.dart';
-import '../features/inm/models/inm_sensor_reading.dart';
-import '../services/auth_service.dart';
-import '../shared/services/freshness_api_service.dart';
-import '../shared/services/weather_api_service.dart';
-import '../shared/models/prediction_model.dart';
-import '../shared/models/reading_model.dart';
-import '../shared/services/sensor_service.dart';
-import '../shared/models/sensor_data.dart';
+import '../shared/services/notifications_api_service.dart';
 import '../core/app_routes.dart';
-import '../shared/utils/role_filter.dart';
 import '../shared/widgets/gradient_header.dart';
 
 enum NotificationType { critical, warning, info }
@@ -33,11 +23,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   Timer? _autoRefreshTimer;
 
   // Services
-  final InmApiService _inmApiService = InmApiService();
-  final AuthService _authService = AuthService();
-  final FreshnessApiService _freshnessApiService = FreshnessApiService();
-  final SensorService _sensorService = SensorService();
-  final WeatherApiService _weatherApiService = WeatherApiService();
+  final NotificationsApiService _notificationsApiService = NotificationsApiService();
 
   // Data state
   bool _isLoading = false;
@@ -71,8 +57,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void dispose() {
     _autoRefreshTimer?.cancel();
-    _freshnessApiService.dispose();
-    _weatherApiService.dispose();
     super.dispose();
   }
 
@@ -93,316 +77,47 @@ class _NotificationScreenState extends State<NotificationScreen> {
     try {
       final List<_NotificationItem> notifications = <_NotificationItem>[];
 
-      // Fetch data from all sources
-      List<InmSensorReading> inmReadings = [];
-      InmStatus? inmStatus;
-      WeatherModel? weather;
-      PredictionModel? freshnessPrediction;
-      ReadingModel? freshnessReading;
-      List<SensorReading> sensorReadings = [];
-
+      // Fetch in-app notifications from backend (EOSM and others)
       try {
         final token = Provider.of<AuthState>(context, listen: false).token;
         if (token != null) {
-          final devices =
-              await _authService.fetchMyDevices(token, deviceType: 'INM');
-          if (devices.isNotEmpty) {
-            final deviceId = (devices.first['device_serial_number'] ??
-                devices.first['device_id'] ?? '') as String;
-            if (deviceId.isNotEmpty) {
-              inmReadings =
-                  await _inmApiService.fetchAllReadings(deviceId, token);
-              if (inmReadings.isNotEmpty) {
-                inmStatus = await _inmApiService.fetchStatus(deviceId, token);
-              }
+          final List<Map<String, dynamic>> backendNotifications =
+              await _notificationsApiService.fetchNotifications(token: token);
+          for (final Map<String, dynamic> n in backendNotifications) {
+            final String typeStr = (n['type'] as String?) ?? '';
+            final String severity = ((n['severity'] as String?) ?? 'INFO').toUpperCase();
+            NotificationType notifType = NotificationType.info;
+            if (severity == 'HIGH') {
+              notifType = NotificationType.critical;
+            } else if (severity == 'WARNING') {
+              notifType = NotificationType.warning;
             }
-          }
-        }
-      } catch (e) {
-        // Ignore INM errors — notifications screen degrades gracefully
-      }
-
-      // Fetch weather for fertilizer timing advisories (Farmer only)
-      if (RoleFilter.isFarmer(_userRoles) ||
-          RoleFilter.hasBothRoles(_userRoles)) {
-        try {
-          weather = await _weatherApiService.fetchCurrentWeather();
-        } catch (e) {
-          // Ignore weather errors
-        }
-      }
-
-      try {
-        final data = await _freshnessApiService.getLatestWithPrediction(
-          'device_001',
-          forceRefresh: true,
-        );
-        freshnessReading = ReadingModel.fromJson(
-          data['reading'] as Map<String, dynamic>,
-        );
-        freshnessPrediction = PredictionModel.fromJson(
-          data['prediction'] as Map<String, dynamic>,
-        );
-      } catch (e) {
-        // Ignore freshness errors
-      }
-
-      try {
-        sensorReadings = await _sensorService.fetchLatestReadings(
-          limit: 20,
-          token: Provider.of<AuthState>(context, listen: false).token,
-        );
-      } catch (e) {
-        // Ignore sensor errors
-      }
-
-      // Generate notifications from Freshness alerts (Florist only)
-      if (freshnessPrediction != null &&
-          freshnessReading != null &&
-          (RoleFilter.isFlorist(_userRoles) ||
-              RoleFilter.hasBothRoles(_userRoles))) {
-        final double score = freshnessPrediction.freshnessScore;
-        if (score < 40) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Critical Freshness',
-              description:
-                  'Freshness score is critical (${score.toStringAsFixed(0)}%)',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.warning,
-              route: AppRoutes.freshness,
-            ),
-          );
-        } else if (score < 70) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Freshness Update',
-              description:
-                  'Freshness score is decreasing (${score.toStringAsFixed(0)}%)',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.local_florist,
-              route: AppRoutes.freshness,
-            ),
-          );
-        }
-
-        // Vase life notifications
-        final double vaseLifeHours = freshnessPrediction.vaseLifeHours;
-        if (vaseLifeHours < 48) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Vase Life Alert',
-              description: 'Predicted vase life is under 48 hours',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.access_time,
-              route: AppRoutes.freshness,
-            ),
-          );
-        }
-
-        // Air temperature alerts from freshness readings
-        if (freshnessReading.airTemperature < 15 ||
-            freshnessReading.airTemperature > 25) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.critical,
-              title: 'Air Temperature Alert',
-              description: 'Storage air temperature outside optimal range',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.thermostat,
-              route: AppRoutes.freshness,
-            ),
-          );
-        }
-
-        // Gas value alerts (ethylene detection)
-        if (freshnessReading.gasValue > 70) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Ethylene Alert',
-              description: 'Elevated gas levels detected near flowers',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.air,
-              route: AppRoutes.freshness,
-            ),
-          );
-        }
-
-        // Water level alerts
-        if (freshnessReading.waterLevel < 40) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'Water Level Alert',
-              description: 'Vase water level is low',
-              timestamp: freshnessReading.timestamp,
-              component: 'Freshness',
-              icon: Icons.water_drop_outlined,
-              route: AppRoutes.freshness,
-            ),
-          );
-        }
-      }
-
-      // Generate notifications from INM status (Farmer only)
-      if (inmStatus != null &&
-          (RoleFilter.isFarmer(_userRoles) ||
-              RoleFilter.hasBothRoles(_userRoles))) {
-        final bool hasInmRecommendationSignals =
-            (inmStatus.ecAction.isNotEmpty &&
-                inmStatus.ecAction != 'No EC action available') ||
-            (inmStatus.phAction.isNotEmpty &&
-                inmStatus.phAction != 'No pH action available') ||
-            (inmStatus.npkRecommendation.isNotEmpty &&
-                inmStatus.npkRecommendation !=
-                    'No NPK recommendation available');
-
-        // Critical/Warning EC status
-        if (inmStatus.statusType != EcStatusType.optimal) {
-          notifications.add(
-            _NotificationItem(
-              type:
-                  (inmStatus.statusType == EcStatusType.criticalLow ||
-                      inmStatus.statusType == EcStatusType.criticalHigh)
-                  ? NotificationType.critical
-                  : NotificationType.warning,
-              title: 'EC Level Alert',
-              description: 'EC level is ${inmStatus.statusLabel.toLowerCase()}',
-              timestamp:
-                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
-                  ? inmReadings.first.timestamp!
-                  : DateTime.now(),
-              component: 'Nutrition',
-              icon: Icons.water_drop,
-              route: AppRoutes.inmSensors,
-            ),
-          );
-        }
-
-        // pH action notification
-        if (inmStatus.phAction.isNotEmpty &&
-            inmStatus.phAction != 'No pH action available' &&
-            inmStatus.phAction.toLowerCase().contains('adjust')) {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.warning,
-              title: 'pH Alert',
-              description: 'pH adjustment required immediately',
-              timestamp:
-                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
-                  ? inmReadings.first.timestamp!
-                  : DateTime.now(),
-              component: 'Nutrition',
-              icon: Icons.science,
-              route: AppRoutes.inmSensors,
-            ),
-          );
-        }
-
-        // NPK recommendation
-        if (inmStatus.npkRecommendation.isNotEmpty &&
-            inmStatus.npkRecommendation != 'No NPK recommendation available') {
-          notifications.add(
-            _NotificationItem(
-              type: NotificationType.info,
-              title: 'Nutrient Update',
-              description: 'New nutrient balance recommendation available',
-              timestamp:
-                  inmReadings.isNotEmpty && inmReadings.first.timestamp != null
-                  ? inmReadings.first.timestamp!
-                  : DateTime.now(),
-              component: 'Nutrition',
-              icon: Icons.eco,
-              route: AppRoutes.inmSensors,
-            ),
-          );
-        }
-
-        // Weather-based fertilizer timing layer (warning only)
-        if (hasInmRecommendationSignals && weather != null) {
-          final advisoryLevel = _computeFertilizerWeatherAdvisoryLevel(weather);
-          if (advisoryLevel != _WeatherAdvisoryLevel.good) {
+            DateTime? createdAt;
+            try {
+              final String? created = n['created_at'] as String?;
+              if (created != null && created.isNotEmpty) {
+                createdAt = DateTime.parse(created);
+              }
+            } catch (_) {}
+            final String? route = typeStr == 'EOSM' ? AppRoutes.stress : null;
             notifications.add(
               _NotificationItem(
-                type: NotificationType.warning,
-                title: advisoryLevel == _WeatherAdvisoryLevel.postpone
-                    ? 'Fertilizer Timing Alert'
-                    : 'Fertilizer Weather Caution',
-                description: _buildWeatherFertilizerAlertDescription(
-                    weather, advisoryLevel),
-                timestamp:
-                    inmReadings.isNotEmpty && inmReadings.first.timestamp != null
-                    ? inmReadings.first.timestamp!
-                    : DateTime.now(),
-                component: 'Nutrition',
-                icon: advisoryLevel == _WeatherAdvisoryLevel.postpone
-                    ? Icons.umbrella_rounded
-                    : Icons.thermostat_rounded,
-                route: AppRoutes.inmSensors,
+                type: notifType,
+                title: (n['title'] as String?) ?? 'Notification',
+                description: (n['message'] as String?) ?? '',
+                timestamp: createdAt ?? DateTime.now(),
+                component: typeStr.isNotEmpty ? typeStr : 'Alert',
+                icon: typeStr == 'EOSM' ? Icons.thermostat : Icons.notifications,
+                route: route,
               ),
             );
           }
         }
+      } catch (e) {
+        // Ignore backend notifications errors
       }
 
-      // Generate notifications from sensor readings (Farmer only - Environment)
-      if (RoleFilter.isFarmer(_userRoles) ||
-          RoleFilter.hasBothRoles(_userRoles)) {
-        for (final SensorReading reading in sensorReadings.take(5)) {
-          if (reading.temperature < 18 || reading.temperature > 28) {
-            notifications.add(
-              _NotificationItem(
-                type: NotificationType.critical,
-                title: 'Climate Alert',
-                description: 'Greenhouse temperature is outside limits',
-                timestamp: reading.timestamp,
-                component: 'Environment',
-                icon: Icons.thermostat,
-                route: AppRoutes.stress,
-              ),
-            );
-          }
-
-          if (reading.humidity < 50 || reading.humidity > 85) {
-            notifications.add(
-              _NotificationItem(
-                type: NotificationType.critical,
-                title: 'Humidity Alert',
-                description: 'Air humidity level requires attention',
-                timestamp: reading.timestamp,
-                component: 'Environment',
-                icon: Icons.water_drop,
-                route: AppRoutes.stress,
-              ),
-            );
-          }
-        }
-      }
-
-      // Disease Component Notifications (Farmer only)
-      if (RoleFilter.isFarmer(_userRoles) ||
-          RoleFilter.hasBothRoles(_userRoles)) {
-        notifications.add(
-          _NotificationItem(
-            type: NotificationType.info,
-            title: 'Disease Risk Low',
-            description: 'Environmental conditions are safe from fungal growth',
-            timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-            component: 'Disease',
-            icon: Icons.shield_outlined,
-            route: AppRoutes.disease,
-          ),
-        );
-      }
+      // Disease: only add real alerts when EDAS/backend provides them; no static placeholder
 
       // Sort by timestamp (newest first)
       notifications.sort((a, b) => b.timestamp.compareTo(a.timestamp));
@@ -426,6 +141,33 @@ class _NotificationScreenState extends State<NotificationScreen> {
     return _allNotifications.where((n) => n.type == _selectedFilter).toList();
   }
 
+  /// Clear all notifications on the server, then refresh the list.
+  Future<void> _clearAllAlerts() async {
+    final String? token = Provider.of<AuthState>(context, listen: false).token;
+    if (token == null) return;
+    setState(() => _isLoading = true);
+    try {
+      final bool ok = await _notificationsApiService.clearAll(token: token);
+      if (mounted) {
+        if (ok) {
+          await _loadNotifications();
+        } else {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Failed to clear alerts';
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Failed to clear alerts';
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
@@ -439,6 +181,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
         context: context,
         title: 'Notifications',
         showBackButton: false,
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.delete_sweep_outlined),
+            tooltip: 'Clear all alerts',
+            onPressed: _allNotifications.isEmpty ? null : _clearAllAlerts,
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadNotifications,
@@ -845,37 +594,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
       return DateFormat(dateFormat).format(localTimestamp);
     }
   }
-}
-
-enum _WeatherAdvisoryLevel { good, caution, postpone }
-
-_WeatherAdvisoryLevel _computeFertilizerWeatherAdvisoryLevel(WeatherModel weather) {
-  final condition = weather.condition.toLowerCase();
-  final isRaining = condition.contains('rain') ||
-      condition.contains('drizzle') ||
-      condition.contains('thunder') ||
-      weather.precipitation > 2.0;
-
-  if (isRaining) return _WeatherAdvisoryLevel.postpone;
-  if (weather.humidity > 85 || weather.temperature > 33) {
-    return _WeatherAdvisoryLevel.caution;
-  }
-  return _WeatherAdvisoryLevel.good;
-}
-
-String _buildWeatherFertilizerAlertDescription(
-  WeatherModel weather,
-  _WeatherAdvisoryLevel level,
-) {
-  if (level == _WeatherAdvisoryLevel.postpone) {
-    return 'Rain-risk conditions (${weather.condition}, '
-        '${weather.precipitation.toStringAsFixed(1)} mm) may wash nutrients. '
-        'Postpone fertilizer application.';
-  }
-
-  return 'Current weather (${weather.temperature.toStringAsFixed(1)}°C, '
-      '${weather.humidity.toStringAsFixed(0)}% RH) needs caution for fertilizer '
-      'application. Apply smaller doses and monitor EC.';
 }
 
 class _NotificationItem {
