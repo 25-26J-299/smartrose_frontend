@@ -35,12 +35,22 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
   Timer? _autoRefreshTimer;
   bool _isScreenVisible = true;
   static const Duration _refreshInterval = Duration(seconds: 30);
+  String? _requestedDeviceId;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadDevices());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is Map && args['deviceId'] != null) {
+      _requestedDeviceId = args['deviceId']?.toString();
+    }
   }
 
   @override
@@ -101,6 +111,20 @@ class _FreshnessHomeScreenState extends State<FreshnessHomeScreen>
         _locations = locations;
         _loadingDevices = false;
       });
+
+      if (_requestedDeviceId != null && _requestedDeviceId!.isNotEmpty) {
+        for (final loc in locations) {
+          for (final rawDevice in loc.devices) {
+            if (rawDevice.deviceSerialNumber == _requestedDeviceId) {
+              final device = rawDevice.copyWithLocationName(loc.locationName);
+              setState(() => _selectedDevice = device);
+              await _loadSensorData();
+              _startAutoRefresh();
+              return;
+            }
+          }
+        }
+      }
 
       // Auto-select first FM device
       for (final loc in locations) {

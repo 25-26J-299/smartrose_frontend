@@ -108,12 +108,18 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 ? AppRoutes.stress
                 : typeStr == 'INM' && deviceId.isNotEmpty
                     ? AppRoutes.inmActionsHistory
+                    : typeStr == 'FM' && deviceId.isNotEmpty
+                        ? AppRoutes.freshness
                     : null;
             final Object? routeArguments = typeStr == 'INM' && deviceId.isNotEmpty
                 ? <String, String>{
                     'deviceId': deviceId,
                     'token': token,
                   }
+                : typeStr == 'FM' && deviceId.isNotEmpty
+                    ? <String, String>{
+                        'deviceId': deviceId,
+                      }
                 : null;
             notifications.add(
               _NotificationItem(
@@ -126,6 +132,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ? Icons.thermostat
                     : typeStr == 'INM'
                         ? Icons.sensors
+                        : typeStr == 'FM'
+                            ? Icons.local_florist
                         : Icons.notifications,
                 route: route,
                 routeArguments: routeArguments,
