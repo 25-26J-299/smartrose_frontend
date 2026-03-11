@@ -86,6 +86,11 @@ class _NotificationScreenState extends State<NotificationScreen> {
           for (final Map<String, dynamic> n in backendNotifications) {
             final String typeStr = (n['type'] as String?) ?? '';
             final String severity = ((n['severity'] as String?) ?? 'INFO').toUpperCase();
+            final dynamic rawMetadata = n['metadata'];
+            final Map<String, dynamic> metadata = rawMetadata is Map
+                ? Map<String, dynamic>.from(rawMetadata as Map)
+                : <String, dynamic>{};
+            final String deviceId = metadata['device_id']?.toString() ?? '';
             NotificationType notifType = NotificationType.info;
             if (severity == 'HIGH') {
               notifType = NotificationType.critical;
@@ -99,7 +104,17 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 createdAt = DateTime.parse(created);
               }
             } catch (_) {}
-            final String? route = typeStr == 'EOSM' ? AppRoutes.stress : null;
+            final String? route = typeStr == 'EOSM'
+                ? AppRoutes.stress
+                : typeStr == 'INM' && deviceId.isNotEmpty
+                    ? AppRoutes.inmActionsHistory
+                    : null;
+            final Object? routeArguments = typeStr == 'INM' && deviceId.isNotEmpty
+                ? <String, String>{
+                    'deviceId': deviceId,
+                    'token': token,
+                  }
+                : null;
             notifications.add(
               _NotificationItem(
                 type: notifType,
@@ -107,8 +122,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                 description: (n['message'] as String?) ?? '',
                 timestamp: createdAt ?? DateTime.now(),
                 component: typeStr.isNotEmpty ? typeStr : 'Alert',
-                icon: typeStr == 'EOSM' ? Icons.thermostat : Icons.notifications,
+                icon: typeStr == 'EOSM'
+                    ? Icons.thermostat
+                    : typeStr == 'INM'
+                        ? Icons.sensors
+                        : Icons.notifications,
                 route: route,
+                routeArguments: routeArguments,
               ),
             );
           }
@@ -406,7 +426,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
       child: InkWell(
         onTap: notification.route != null
             ? () {
-                Navigator.of(context).pushNamed(notification.route!);
+                Navigator.of(context).pushNamed(
+                  notification.route!,
+                  arguments: notification.routeArguments,
+                );
               }
             : null,
         borderRadius: BorderRadius.circular(16),
@@ -498,7 +521,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
                             onPressed: () {
                               Navigator.of(
                                 context,
-                              ).pushNamed(notification.route!);
+                              ).pushNamed(
+                                notification.route!,
+                                arguments: notification.routeArguments,
+                              );
                             },
                             style: TextButton.styleFrom(
                               padding: const EdgeInsets.symmetric(
@@ -605,6 +631,7 @@ class _NotificationItem {
     required this.component,
     this.icon,
     this.route,
+    this.routeArguments,
   });
 
   final NotificationType type;
@@ -614,4 +641,5 @@ class _NotificationItem {
   final String component;
   final IconData? icon;
   final String? route;
+  final Object? routeArguments;
 }

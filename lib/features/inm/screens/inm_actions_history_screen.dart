@@ -43,13 +43,14 @@ class _InmActionsHistoryScreenState extends State<InmActionsHistoryScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
+    final authToken = Provider.of<AuthState>(context, listen: false).token ?? '';
     if (args is Map) {
       _deviceId = args['deviceId'] as String? ?? '';
-      _token = args['token'] as String? ?? '';
+      _token = args['token'] as String? ?? authToken;
     } else {
       // Fallback: try to read token from AuthState (deviceId will be empty)
       _deviceId = '';
-      _token = Provider.of<AuthState>(context, listen: false).token ?? '';
+      _token = authToken;
     }
 
     if (_deviceId.isNotEmpty && _token.isNotEmpty) {
