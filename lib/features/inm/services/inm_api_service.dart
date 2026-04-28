@@ -13,16 +13,11 @@ import 'package:http/http.dart' as http;
 import '../models/inm_sensor_reading.dart';
 import '../models/inm_status.dart';
 import '../models/inm_action_history.dart';
+import '../../../core/config/app_config.dart';
 import '../../../shared/services/weather_api_service.dart';
 
 class InmApiService {
-  static String get _baseUrl {
-    if (kIsWeb) return 'http://localhost:8000/api/v1/inm';
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000/api/v1/inm';
-    }
-    return 'http://localhost:8000/api/v1/inm';
-  }
+  static String get _baseUrl => '${getApiBaseUrl()}/inm';
 
   // ---------------------------------------------------------------------------
   // Shared helpers

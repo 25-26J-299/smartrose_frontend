@@ -95,9 +95,9 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               const Text(
                 '💡 Tips:\n'
-                '• Make sure your backend is running at localhost:8000\n'
-                '• Check if CORS is enabled on your backend\n'
-                '• Verify the API endpoint is correct',
+                '• Check your network connection\n'
+                '• For local dev, ensure the backend is running and SMARTROSE_API_BASE matches your build\n'
+                '• Verify the API endpoint / CORS on your backend',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 12, color: Colors.grey),
               ),

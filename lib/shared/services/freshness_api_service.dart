@@ -175,7 +175,7 @@ class FreshnessApiService {
         return DioException(
           requestOptions: error.requestOptions,
           error:
-              'Cannot connect to backend server. Please ensure the backend is running on http://localhost:8000',
+              'Cannot connect to the backend API. Check your network and that the server is reachable.',
           type: error.type,
         );
       }
