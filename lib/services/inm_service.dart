@@ -7,8 +7,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-// 1️⃣ Set your common backend API URL
-const String baseUrl = 'http://localhost:8000/api/v1/inm/sensor-data';
+import '../core/config/app_config.dart';
 
 class INMService {
   /// Fetch all sensor readings
@@ -16,6 +15,7 @@ class INMService {
   Future<Map<String, dynamic>> fetchSensorReadings() async {
     try {
       // Add timestamp to prevent caching and always get fresh data
+      final String baseUrl = '${getApiBaseUrl()}/inm/sensor-data';
       final String urlWithCacheBust = '$baseUrl?_t=${DateTime.now().millisecondsSinceEpoch}';
       debugPrint('🔄 Fetching sensor data from: $urlWithCacheBust');
       
