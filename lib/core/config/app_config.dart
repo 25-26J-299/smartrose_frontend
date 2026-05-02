@@ -15,7 +15,7 @@ String getApiBaseUrl() {
   }
 
   if (kIsWeb) {
-    return 'http://localhost:8000/api/v1';
+    return kDefaultProductionApiBase;
   }
 
   // Mobile/desktop: default to production so emulator and physical devices work
@@ -25,7 +25,7 @@ String getApiBaseUrl() {
     case TargetPlatform.android:
       return kDefaultProductionApiBase;
     default:
-      return 'http://localhost:8000/api/v1';
+      return kDefaultProductionApiBase;
   }
 }
 
