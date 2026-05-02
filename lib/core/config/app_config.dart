@@ -1,28 +1,30 @@
 import 'package:flutter/foundation.dart';
 
-/// Get the default API base URL based on the platform
+/// Production API (used when [SMARTROSE_API_BASE] is not passed at compile time).
+const String kDefaultProductionApiBase = 'https://api.smartroseiot.com/api/v1';
+
+/// Resolves the API base URL.
+///
+/// Override for local backend:
+/// `flutter run --dart-define=SMARTROSE_API_BASE=http://10.0.2.2:8000/api/v1` (Android emulator)
+/// `flutter run --dart-define=SMARTROSE_API_BASE=http://localhost:8000/api/v1` (iOS simulator)
 String getApiBaseUrl() {
-  // Check if base URL is provided via environment variable
   const String envUrl = String.fromEnvironment('SMARTROSE_API_BASE');
   if (envUrl.isNotEmpty) {
     return envUrl;
   }
 
-  // Platform-specific defaults
   if (kIsWeb) {
     return 'http://localhost:8000/api/v1';
   }
 
-  // Use defaultTargetPlatform to detect iOS vs Android
-  // iOS simulator can access localhost directly
-  // Android emulator needs 10.0.2.2 to access host machine
+  // Mobile/desktop: default to production so emulator and physical devices work
+  // without a server on the host (avoids 10.0.2.2 / connection refused when API is down).
   switch (defaultTargetPlatform) {
     case TargetPlatform.iOS:
-      return 'http://localhost:8000/api/v1';
     case TargetPlatform.android:
-      return 'http://10.0.2.2:8000/api/v1';
+      return kDefaultProductionApiBase;
     default:
-      // Default to localhost for other platforms (macOS, Linux, Windows)
       return 'http://localhost:8000/api/v1';
   }
 }
