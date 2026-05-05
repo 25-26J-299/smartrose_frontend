@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/auth/auth_state.dart';
 import '../models/edas_models.dart';
 import '../providers/edas_provider.dart';
 import '../../../shared/widgets/gradient_header.dart';
@@ -23,7 +24,18 @@ class _EdasDashboardScreenState extends State<EdasDashboardScreen> {
   void initState() {
     super.initState();
     _provider = EdasProvider();
-    unawaited(_provider.startAutoRefresh());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(
+        _provider.startAutoRefresh(
+          tick: () => _provider.refresh(
+            force: true,
+            token: context.read<AuthState>().token,
+            greenhouseId: null,
+          ),
+        ),
+      );
+    });
   }
 
   @override
@@ -64,7 +76,11 @@ class _DashboardView extends StatelessWidget {
             onBackPressed: () => Navigator.of(context).pop(),
           ),
           body: RefreshIndicator(
-            onRefresh: () => provider.refresh(force: true),
+            onRefresh: () => provider.refresh(
+              force: true,
+              token: context.read<AuthState>().token,
+              greenhouseId: null,
+            ),
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
                 final bool isMobile = constraints.maxWidth < 600;
@@ -102,7 +118,11 @@ class _DashboardView extends StatelessWidget {
                     ] else
                       _EmptyState(
                         message: 'No readings for this selection.',
-                        onRetry: () => provider.refresh(force: true),
+                        onRetry: () => provider.refresh(
+                          force: true,
+                          token: context.read<AuthState>().token,
+                          greenhouseId: null,
+                        ),
                       ),
                     _buildSectionHeader(context, 'Trends', isMobile),
                     SizedBox(height: isMobile ? 8 : 12),
@@ -112,7 +132,11 @@ class _DashboardView extends StatelessWidget {
                       _EmptyState(
                         message:
                             'Not enough history yet. Ingest more readings.',
-                        onRetry: () => provider.refresh(force: true),
+                        onRetry: () => provider.refresh(
+                          force: true,
+                          token: context.read<AuthState>().token,
+                          greenhouseId: null,
+                        ),
                       ),
                     SizedBox(height: isMobile ? 24 : 32),
                     _buildSectionHeader(
@@ -1169,11 +1193,14 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
     setState(() {
       isLoadingHistory = true;
     });
+    final String? token =
+        Provider.of<AuthState>(context, listen: false).token;
     final List<EdasSensorReading> fetched = await widget.provider
         .fetchHistoryForDateRange(
+          token: token,
           startDate: startDate,
           endDate: endDate,
-          greenhouseId: null, // Always fetch all greenhouses
+          greenhouseId: null,
           limit: 2000,
         );
     if (mounted) {

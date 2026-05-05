@@ -12,8 +12,18 @@ class EdasApiService {
 
   final ApiService _apiService;
 
-  /// Fetch latest sensor readings with optional filtering
+  Map<String, dynamic>? _unwrapData(Map<String, dynamic>? body) {
+    if (body == null) return null;
+    final dynamic inner = body['data'];
+    if (inner is Map<String, dynamic>) {
+      return inner;
+    }
+    return body;
+  }
+
+  /// Fetch latest sensor readings with optional filtering (JWT required server-side).
   Future<List<EdasSensorReading>> fetchLatestReadings({
+    required String token,
     int limit = 20,
     String? greenhouseId,
   }) async {
@@ -27,6 +37,7 @@ class EdasApiService {
       final http.Response response = await _apiService.get(
         '/edas-data/',
         query: query,
+        token: token,
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -53,6 +64,7 @@ class EdasApiService {
 
   /// Fetch sensor reading history with date range filtering
   Future<List<EdasSensorReading>> fetchHistory({
+    required String token,
     int limit = 100,
     String? greenhouseId,
     DateTime? startDate,
@@ -74,7 +86,7 @@ class EdasApiService {
     final Uri uri = _apiService.uri('/edas-data/', query: query);
 
     try {
-      final http.Response response = await _apiService.getUri(uri);
+      final http.Response response = await _apiService.getUri(uri, token: token);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic>? body = _apiService.decodeJson(response);
         final dynamic data = body?['data'] ?? body;
@@ -91,8 +103,8 @@ class EdasApiService {
   }
 
   /// Fetch the latest sensor data record from MongoDB
-  /// This ensures we always get the most recent record for the summary cards
   Future<EdasSensorReading?> fetchLatestSensorData({
+    required String token,
     String? greenhouseId,
   }) async {
     try {
@@ -101,28 +113,29 @@ class EdasApiService {
         query['greenhouseId'] = greenhouseId;
       }
 
-      // Try the dedicated latest-sensor-data endpoint first
-      final Uri latestUri = _apiService.uri('/edas-data/latest-sensor-data', query: query);
-      final http.Response latestResponse = await _apiService.getUri(latestUri);
-      
-      if (latestResponse.statusCode >= 200 && latestResponse.statusCode < 300) {
-        final Map<String, dynamic>? body = _apiService.decodeJson(latestResponse);
+      final Uri latestUri =
+          _apiService.uri('/edas-data/latest-sensor-data', query: query);
+      final http.Response latestResponse =
+          await _apiService.getUri(latestUri, token: token);
+
+      if (latestResponse.statusCode >= 200 &&
+          latestResponse.statusCode < 300) {
+        final Map<String, dynamic>? body =
+            _apiService.decodeJson(latestResponse);
         if (body != null) {
-          final dynamic data = body['data'] ?? body['reading'] ?? body;
-          if (data is Map<String, dynamic>) {
+          final Map<String, dynamic>? data = _unwrapData(body);
+          if (data != null) {
             return EdasSensorReading.fromJson(data);
-          } else if (data is List && data.isNotEmpty) {
-            return EdasSensorReading.fromJson(data[0] as Map<String, dynamic>);
           }
         }
       }
-      
-      // Fallback: fetch with limit=1 to get the latest
+
       final List<EdasSensorReading> readings = await fetchLatestReadings(
+        token: token,
         limit: 1,
         greenhouseId: greenhouseId,
       );
-      
+
       if (readings.isNotEmpty) {
         return readings.first;
       }
@@ -134,6 +147,7 @@ class EdasApiService {
 
   /// Fetch latest sensor reading with its ML disease prediction
   Future<Map<String, dynamic>?> fetchLatestWithPrediction({
+    required String token,
     String? greenhouseId,
   }) async {
     final Map<String, String> query = <String, String>{};
@@ -145,10 +159,18 @@ class EdasApiService {
         _apiService.uri('/edas-data/latest-with-prediction', query: query);
 
     try {
-      final http.Response response = await _apiService.getUri(uri);
+      final http.Response response = await _apiService.getUri(uri, token: token);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final Map<String, dynamic>? body = _apiService.decodeJson(response);
-        return body;
+        final Map<String, dynamic>? inner = _unwrapData(body);
+        if (inner == null) {
+          return null;
+        }
+        return <String, dynamic>{
+          ...inner,
+          'reading': inner['reading'] ?? inner['sensor_data'],
+          'prediction': inner['prediction'],
+        };
       }
     } catch (err) {
       debugPrint('EdasApiService.fetchLatestWithPrediction error: $err');
@@ -166,4 +188,3 @@ class EdasApiService {
     return <dynamic>[];
   }
 }
-

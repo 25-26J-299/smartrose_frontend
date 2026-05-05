@@ -79,38 +79,59 @@ class EdasProvider extends ChangeNotifier {
     return sum / source.length;
   }
 
-  Future<void> startAutoRefresh({Duration interval = const Duration(seconds: 15)}) async {
-    await refresh(force: true);
+  /// [tick] is invoked immediately and on each [interval]; return a [Future] that loads data.
+  Future<void> startAutoRefresh({
+    Duration interval = const Duration(seconds: 15),
+    required Future<void> Function() tick,
+  }) async {
+    await tick();
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(interval, (_) => refresh(force: true));
+    _refreshTimer = Timer.periodic(interval, (_) {
+      unawaited(tick());
+    });
   }
 
-  Future<void> refresh({bool force = false, int historyLimit = 120}) async {
+  Future<void> refresh({
+    bool force = false,
+    int historyLimit = 120,
+    required String? token,
+    String? greenhouseId,
+  }) async {
     if (_isLoading && !force) return;
+
+    if (token == null || token.isEmpty) {
+      _errorMessage = 'Please sign in to view disease detection data.';
+      _latest = null;
+      _readings = <EdasSensorReading>[];
+      _latestPrediction = null;
+      notifyListeners();
+      return;
+    }
 
     _isLoading = true;
     _errorMessage = null;
     if (!force) notifyListeners();
 
     try {
-      // PRIORITY 1: Fetch the absolute latest sensor data record from MongoDB
-      // This ensures summary cards always show the newest record
-      final EdasSensorReading? latestSensorData = await _api.fetchLatestSensorData(
-        greenhouseId: null, // Always fetch all greenhouses
+      final EdasSensorReading? latestSensorData =
+          await _api.fetchLatestSensorData(
+        token: token,
+        greenhouseId: greenhouseId,
       );
-      
+
       if (latestSensorData != null) {
-        // Always update _latest with the newest record to ensure summary cards are current
         _latest = latestSensorData;
-        debugPrint('EdasProvider: Latest sensor data updated - Plant: ${_latest!.plantTemperature}°C, Air: ${_latest!.airTemperature}°C, Humidity: ${_latest!.humidity}%');
+        debugPrint(
+            'EdasProvider: Latest sensor data updated - Plant: ${_latest!.plantTemperature}°C, Air: ${_latest!.airTemperature}°C, Humidity: ${_latest!.humidity}%');
       }
 
-      // PRIORITY 2: Fetch prediction data (can be done in parallel or after)
       final Map<String, dynamic>? latestWithPrediction =
-          await _api.fetchLatestWithPrediction(greenhouseId: null); // Always fetch all greenhouses
+          await _api.fetchLatestWithPrediction(
+        token: token,
+        greenhouseId: greenhouseId,
+      );
 
       if (latestWithPrediction != null) {
-        // Update prediction from the response
         final dynamic predictionData = latestWithPrediction['prediction'];
         if (predictionData != null) {
           _latestPrediction = EdasDiseasePrediction.fromJson(
@@ -121,32 +142,32 @@ class EdasProvider extends ChangeNotifier {
           _latestPrediction = null;
           debugPrint('EdasProvider: No prediction in response');
         }
-        
-        // If latest-with-prediction also returned a reading and it's newer, use it
+
         final dynamic readingData = latestWithPrediction['reading'];
         if (readingData != null) {
-          final EdasSensorReading readingFromPrediction = EdasSensorReading.fromJson(
-              readingData as Map<String, dynamic>);
-          // Use the newer reading (compare timestamps)
-          if (_latest == null || 
+          final EdasSensorReading readingFromPrediction =
+              EdasSensorReading.fromJson(
+                  readingData as Map<String, dynamic>);
+          if (_latest == null ||
               readingFromPrediction.timestamp.isAfter(_latest!.timestamp)) {
             _latest = readingFromPrediction;
-            debugPrint('EdasProvider: Updated to newer reading from prediction endpoint');
+            debugPrint(
+                'EdasProvider: Updated to newer reading from prediction endpoint');
           }
         }
       }
 
-      // PRIORITY 3: Fetch history for trends (this doesn't affect summary cards)
       final List<EdasSensorReading> history = await _api.fetchHistory(
-          greenhouseId: null, limit: historyLimit); // Always fetch all greenhouses
+        token: token,
+        greenhouseId: greenhouseId,
+        limit: historyLimit,
+      );
       if (history.isNotEmpty) {
-        // Create a new list to ensure Flutter detects the change
-        final List<EdasSensorReading> newReadings = List<EdasSensorReading>.from(history);
+        final List<EdasSensorReading> newReadings =
+            List<EdasSensorReading>.from(history);
         if (_latest != null) {
-          // Ensure latest is at the beginning of the list
-          newReadings.removeWhere((r) => 
-              r.id == _latest!.id && 
-              r.timestamp == _latest!.timestamp);
+          newReadings.removeWhere((EdasSensorReading r) =>
+              r.id == _latest!.id && r.timestamp == _latest!.timestamp);
           newReadings.insert(0, _latest!);
           _readings = newReadings;
         } else {
@@ -155,7 +176,6 @@ class EdasProvider extends ChangeNotifier {
         }
       } else {
         if (_latest != null) {
-          // Create a new list reference with just the latest
           _readings = <EdasSensorReading>[_latest!];
         } else {
           _latest = null;
@@ -174,11 +194,15 @@ class EdasProvider extends ChangeNotifier {
   }
 
   Future<List<EdasSensorReading>> fetchHistoryForDateRange({
+    required String? token,
     DateTime? startDate,
     DateTime? endDate,
     String? greenhouseId,
     int limit = 1000,
   }) async {
+    if (token == null || token.isEmpty) {
+      return <EdasSensorReading>[];
+    }
     try {
       DateTime? utcStartDate;
       DateTime? utcEndDate;
@@ -197,6 +221,7 @@ class EdasProvider extends ChangeNotifier {
 
       final int fetchLimit = limit.clamp(1, 2000);
       final List<EdasSensorReading> history = await _api.fetchHistory(
+        token: token,
         greenhouseId: greenhouseId == 'ALL' ? null : greenhouseId,
         limit: fetchLimit,
         startDate: utcStartDate,
@@ -263,8 +288,6 @@ class EdasProvider extends ChangeNotifier {
             .toList();
       }
 
-      // Sort by UTC timestamp to ensure proper chronological order
-      // (displayTime is for UI display only)
       filtered.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
       return filtered.take(limit).toList();
@@ -280,4 +303,3 @@ class EdasProvider extends ChangeNotifier {
     super.dispose();
   }
 }
-
