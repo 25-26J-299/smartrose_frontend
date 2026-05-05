@@ -89,6 +89,8 @@ class EdasSensorReading {
       basestationId: (json['basestationId'] ??
               json['basestation_id'] ??
               json['baseStationId'] ??
+              json['device_id'] ??
+              json['deviceId'] ??
               json['sensor_id'] ??
               json['sensorId'] ??
               json['sensorID'] ??
@@ -97,7 +99,9 @@ class EdasSensorReading {
       greenhouseId: (json['greenhouseId'] ??
               json['greenhouse_id'] ??
               json['greenhouseID'] ??
-              json['greenhouseid'])
+              json['greenhouseid'] ??
+              json['location_id'] ??
+              json['locationId'])
           ?.toString(),
       timestamp: ts,
       receivedAt: parseDate(json['received_at'] ?? json['receivedAt']),
@@ -184,7 +188,11 @@ class EdasDiseasePrediction {
     }
 
     return EdasDiseasePrediction(
-      riskLevel: (json['risk_level'] ?? json['riskLevel'] ?? 'LOW') as String,
+      riskLevel: (json['disease_risk_level'] ??
+              json['risk_level'] ??
+              json['riskLevel'] ??
+              'LOW')
+          .toString(),
       riskProbabilities: parseProbabilities(
           json['risk_probabilities'] ?? json['riskProbabilities']),
       diseaseType: json['disease_type'] ?? json['diseaseType'],
