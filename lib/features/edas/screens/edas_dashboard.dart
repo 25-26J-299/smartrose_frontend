@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/auth/auth_state.dart';
+import '../../../models/location.dart';
+import '../../../services/auth_service.dart';
 import '../models/edas_models.dart';
 import '../providers/edas_provider.dart';
 import '../../../shared/widgets/gradient_header.dart';
@@ -19,53 +21,256 @@ class EdasDashboardScreen extends StatefulWidget {
 
 class _EdasDashboardScreenState extends State<EdasDashboardScreen> {
   late final EdasProvider _provider;
+  final AuthService _authService = AuthService();
+  Timer? _pollTimer;
+
+  List<LocationModel> _locations = <LocationModel>[];
+  List<Map<String, dynamic>> _edasDevices = <Map<String, dynamic>>[];
+  String? _selectedGreenhouseId;
+  String? _selectedDeviceSerial;
+  bool _scopeLoading = true;
 
   @override
   void initState() {
     super.initState();
     _provider = EdasProvider();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_bootstrap()));
+  }
+
+  Future<void> _bootstrap() async {
+    if (!mounted) return;
+    final String? token = context.read<AuthState>().token;
+    if (token == null) {
+      setState(() => _scopeLoading = false);
+      return;
+    }
+    setState(() => _scopeLoading = true);
+    final List<Map<String, dynamic>> raw =
+        await _authService.fetchMyLocations(token);
+    if (!mounted) return;
+    final List<LocationModel> locs =
+        raw.map(LocationModel.fromJson).toList();
+    final String? ghId =
+        locs.isNotEmpty ? locs.first.id : null;
+    setState(() {
+      _locations = locs;
+      _selectedGreenhouseId = ghId;
+    });
+    await _reloadDevices(token);
+  }
+
+  Future<void> _reloadDevices(String token) async {
+    if (!mounted) return;
+    final String? gh = _selectedGreenhouseId;
+    if (gh == null) {
+      setState(() {
+        _edasDevices = <Map<String, dynamic>>[];
+        _selectedDeviceSerial = null;
+        _scopeLoading = false;
+      });
+      _provider.clearReadings();
+      _pollTimer?.cancel();
+      return;
+    }
+    final List<Map<String, dynamic>> devs = await _authService.fetchMyDevices(
+      token,
+      deviceType: 'EDAS',
+      locationId: gh,
+    );
+    if (!mounted) return;
+    final List<String> serials = devs
+        .map((Map<String, dynamic> d) =>
+            d['device_serial_number']?.toString() ?? '')
+        .where((String s) => s.isNotEmpty)
+        .toList();
+    String? serial = _selectedDeviceSerial;
+    if (serials.isEmpty) {
+      serial = null;
+    } else if (serial == null || !serials.contains(serial)) {
+      serial = serials.first;
+    }
+    setState(() {
+      _edasDevices = devs;
+      _selectedDeviceSerial = serial;
+      _scopeLoading = false;
+    });
+    if (serial == null || serial.isEmpty) {
+      _pollTimer?.cancel();
+      _provider.clearReadings();
+      return;
+    }
+    _startPolling();
+    unawaited(
+      _provider.refresh(
+        force: true,
+        token: token,
+        greenhouseId: gh,
+        deviceId: serial,
+      ),
+    );
+  }
+
+  void _startPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!mounted) return;
+      final String? token = context.read<AuthState>().token;
+      final String? device = _selectedDeviceSerial;
+      final String? gh = _selectedGreenhouseId;
+      if (token == null || device == null || device.isEmpty) return;
       unawaited(
-        _provider.startAutoRefresh(
-          tick: () => _provider.refresh(
-            force: true,
-            token: context.read<AuthState>().token,
-            greenhouseId: null,
-          ),
+        _provider.refresh(
+          token: token,
+          greenhouseId: gh,
+          deviceId: device,
         ),
       );
     });
   }
 
+  void _onGreenhouseChanged(String? newId) {
+    if (newId == null || newId == _selectedGreenhouseId) return;
+    setState(() => _selectedGreenhouseId = newId);
+    final String? token = context.read<AuthState>().token;
+    if (token != null) {
+      unawaited(_reloadDevices(token));
+    }
+  }
+
+  void _onDeviceChanged(String? serial) {
+    if (serial == null || serial == _selectedDeviceSerial) return;
+    setState(() => _selectedDeviceSerial = serial);
+    final String? token = context.read<AuthState>().token;
+    if (token != null) {
+      unawaited(
+        _provider.refresh(
+          force: true,
+          token: token,
+          greenhouseId: _selectedGreenhouseId,
+          deviceId: serial,
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _provider.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final String? token = context.read<AuthState>().token;
     return ChangeNotifierProvider<EdasProvider>.value(
       value: _provider,
-      child: const _DashboardView(),
+      child: _DashboardView(
+        token: token,
+        scopeLoading: _scopeLoading,
+        locations: _locations,
+        edasDevices: _edasDevices,
+        greenhouseId: _selectedGreenhouseId,
+        deviceSerial: _selectedDeviceSerial,
+        onGreenhouseChanged: _onGreenhouseChanged,
+        onDeviceChanged: _onDeviceChanged,
+      ),
     );
   }
 }
 
 class _DashboardView extends StatelessWidget {
-  const _DashboardView();
+  const _DashboardView({
+    required this.token,
+    required this.scopeLoading,
+    required this.locations,
+    required this.edasDevices,
+    required this.greenhouseId,
+    required this.deviceSerial,
+    required this.onGreenhouseChanged,
+    required this.onDeviceChanged,
+  });
+
+  final String? token;
+  final bool scopeLoading;
+  final List<LocationModel> locations;
+  final List<Map<String, dynamic>> edasDevices;
+  final String? greenhouseId;
+  final String? deviceSerial;
+  final void Function(String? id) onGreenhouseChanged;
+  final void Function(String? serial) onDeviceChanged;
 
   @override
   Widget build(BuildContext context) {
+    if (token == null || token!.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: GradientHeader.buildAppBar(
+          context: context,
+          title: 'EDAS - Early Disease Alert',
+          onBackPressed: () => Navigator.of(context).pop(),
+        ),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text('Please sign in to view disease detection data.'),
+          ),
+        ),
+      );
+    }
+
+    if (scopeLoading) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: GradientHeader.buildAppBar(
+          context: context,
+          title: 'EDAS - Early Disease Alert',
+          onBackPressed: () => Navigator.of(context).pop(),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (locations.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: GradientHeader.buildAppBar(
+          context: context,
+          title: 'EDAS - Early Disease Alert',
+          onBackPressed: () => Navigator.of(context).pop(),
+        ),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'No greenhouses or locations found. Add a location first.',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Consumer<EdasProvider>(
       builder: (BuildContext context, EdasProvider provider, Widget? _) {
         final EdasSensorReading? latest = provider.latestForSelected;
         final EdasDiseasePrediction? prediction = provider.latestPrediction;
         final List<EdasSensorReading> history = provider.readingsForSelected;
 
-        if (provider.isLoading && latest == null) {
-          return const Center(child: CircularProgressIndicator());
+        final bool missingDevice =
+            deviceSerial == null || deviceSerial!.isEmpty;
+        final String authToken = token!;
+
+        if (provider.isLoading && latest == null && !missingDevice) {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF5F5F5),
+            appBar: GradientHeader.buildAppBar(
+              context: context,
+              title: 'EDAS - Early Disease Alert',
+              onBackPressed: () => Navigator.of(context).pop(),
+            ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
         }
 
         return Scaffold(
@@ -78,8 +283,9 @@ class _DashboardView extends StatelessWidget {
           body: RefreshIndicator(
             onRefresh: () => provider.refresh(
               force: true,
-              token: context.read<AuthState>().token,
-              greenhouseId: null,
+              token: authToken,
+              greenhouseId: greenhouseId,
+              deviceId: deviceSerial ?? '',
             ),
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
@@ -88,6 +294,22 @@ class _DashboardView extends StatelessWidget {
                 return ListView(
                   padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
                   children: <Widget>[
+                    _EdasScopeSelectors(
+                      locations: locations,
+                      devices: edasDevices,
+                      greenhouseId: greenhouseId,
+                      deviceSerial: deviceSerial,
+                      onGreenhouseChanged: onGreenhouseChanged,
+                      onDeviceChanged: onDeviceChanged,
+                    ),
+                    const SizedBox(height: 12),
+                    if (missingDevice) ...[
+                      _ErrorBanner(
+                        message:
+                            'No EDAS device is registered for this greenhouse.',
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                     if (prediction != null) ...[
                       _DiseasePredictionCard(
                         prediction: prediction,
@@ -115,13 +337,14 @@ class _DashboardView extends StatelessWidget {
                         isMobile: isMobile,
                       ),
                       SizedBox(height: isMobile ? 16 : 24),
-                    ] else
+                    ] else if (!missingDevice)
                       _EmptyState(
-                        message: 'No readings for this selection.',
+                        message: 'No readings for this device yet.',
                         onRetry: () => provider.refresh(
                           force: true,
-                          token: context.read<AuthState>().token,
-                          greenhouseId: null,
+                          token: authToken,
+                          greenhouseId: greenhouseId,
+                          deviceId: deviceSerial ?? '',
                         ),
                       ),
                     _buildSectionHeader(context, 'Trends', isMobile),
@@ -134,8 +357,9 @@ class _DashboardView extends StatelessWidget {
                             'Not enough history yet. Ingest more readings.',
                         onRetry: () => provider.refresh(
                           force: true,
-                          token: context.read<AuthState>().token,
-                          greenhouseId: null,
+                          token: authToken,
+                          greenhouseId: greenhouseId,
+                          deviceId: deviceSerial ?? '',
                         ),
                       ),
                     SizedBox(height: isMobile ? 24 : 32),
@@ -144,7 +368,12 @@ class _DashboardView extends StatelessWidget {
                       'History',
                       isMobile,
                       trailing: GestureDetector(
-                        onTap: () => _showHistoryDialog(context, provider),
+                        onTap: () => _showHistoryDialog(
+                          context,
+                          provider,
+                          greenhouseId: greenhouseId,
+                          deviceId: deviceSerial,
+                        ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -1064,6 +1293,159 @@ Widget _buildSectionHeader(
   );
 }
 
+class _EdasScopeSelectors extends StatelessWidget {
+  const _EdasScopeSelectors({
+    required this.locations,
+    required this.devices,
+    required this.greenhouseId,
+    required this.deviceSerial,
+    required this.onGreenhouseChanged,
+    required this.onDeviceChanged,
+  });
+
+  final List<LocationModel> locations;
+  final List<Map<String, dynamic>> devices;
+  final String? greenhouseId;
+  final String? deviceSerial;
+  final void Function(String? id) onGreenhouseChanged;
+  final void Function(String? serial) onDeviceChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool narrow = MediaQuery.of(context).size.width < 600;
+    return Card(
+      elevation: 0,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: narrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  _greenhouseDropdown(context),
+                  const SizedBox(height: 12),
+                  _deviceDropdown(context),
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(child: _greenhouseDropdown(context)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _deviceDropdown(context)),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _greenhouseDropdown(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'Greenhouse',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: const Color(0xFF1B5E20),
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          value: greenhouseId != null &&
+                  locations.any((LocationModel l) => l.id == greenhouseId)
+              ? greenhouseId
+              : (locations.isNotEmpty ? locations.first.id : null),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: const Color(0xFFF5F5F5),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          isExpanded: true,
+          items: locations
+              .map(
+                (LocationModel loc) => DropdownMenuItem<String>(
+                  value: loc.id,
+                  child: Text(loc.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged: locations.length <= 1 ? null : onGreenhouseChanged,
+        ),
+      ],
+    );
+  }
+
+  Widget _deviceDropdown(BuildContext context) {
+    final List<DropdownMenuItem<String>> items = devices
+        .map((Map<String, dynamic> d) {
+          final String serial =
+              d['device_serial_number']?.toString() ?? '';
+          final String label =
+              '${d['name'] ?? 'EDAS'} ($serial)';
+          if (serial.isEmpty) return null;
+          return DropdownMenuItem<String>(
+            value: serial,
+            child: Text(label, overflow: TextOverflow.ellipsis),
+          );
+        })
+        .whereType<DropdownMenuItem<String>>()
+        .toList();
+
+    final String? effectiveValue = deviceSerial != null &&
+            items.any((DropdownMenuItem<String> e) => e.value == deviceSerial)
+        ? deviceSerial
+        : (items.isNotEmpty ? items.first.value : null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          'EDAS device',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: const Color(0xFF1B5E20),
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 6),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              'No EDAS devices registered for this greenhouse.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          )
+        else
+          DropdownButtonFormField<String>(
+            value: effectiveValue,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFFF5F5F5),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            isExpanded: true,
+            items: items,
+            onChanged: items.length <= 1 ? null : onDeviceChanged,
+          ),
+      ],
+    );
+  }
+}
+
 class _ErrorBanner extends StatelessWidget {
   const _ErrorBanner({required this.message});
 
@@ -1133,28 +1515,46 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-void _showHistoryDialog(BuildContext context, EdasProvider provider) {
+void _showHistoryDialog(
+  BuildContext context,
+  EdasProvider provider, {
+  required String? greenhouseId,
+  required String? deviceId,
+}) {
   final bool isMobile = MediaQuery.of(context).size.width < 600;
 
   if (isMobile) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => _HistoryDialogContent(provider: provider),
+        builder: (BuildContext context) => _HistoryDialogContent(
+          provider: provider,
+          greenhouseId: greenhouseId,
+          deviceId: deviceId,
+        ),
       ),
     );
   } else {
     showDialog<void>(
       context: context,
-      builder: (BuildContext context) =>
-          _HistoryDialogContent(provider: provider),
+      builder: (BuildContext context) => _HistoryDialogContent(
+        provider: provider,
+        greenhouseId: greenhouseId,
+        deviceId: deviceId,
+      ),
     );
   }
 }
 
 class _HistoryDialogContent extends StatefulWidget {
-  const _HistoryDialogContent({required this.provider});
+  const _HistoryDialogContent({
+    required this.provider,
+    required this.greenhouseId,
+    required this.deviceId,
+  });
 
   final EdasProvider provider;
+  final String? greenhouseId;
+  final String? deviceId;
 
   @override
   State<_HistoryDialogContent> createState() => _HistoryDialogContentState();
@@ -1200,7 +1600,8 @@ class _HistoryDialogContentState extends State<_HistoryDialogContent> {
           token: token,
           startDate: startDate,
           endDate: endDate,
-          greenhouseId: null,
+          greenhouseId: widget.greenhouseId,
+          deviceId: widget.deviceId,
           limit: 2000,
         );
     if (mounted) {

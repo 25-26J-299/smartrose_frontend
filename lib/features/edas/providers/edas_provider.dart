@@ -79,6 +79,15 @@ class EdasProvider extends ChangeNotifier {
     return sum / source.length;
   }
 
+  /// Clears charts when there is no device to query (UI shows its own hint).
+  void clearReadings() {
+    _latest = null;
+    _readings = <EdasSensorReading>[];
+    _latestPrediction = null;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   /// [tick] is invoked immediately and on each [interval]; return a [Future] that loads data.
   Future<void> startAutoRefresh({
     Duration interval = const Duration(seconds: 15),
@@ -96,11 +105,21 @@ class EdasProvider extends ChangeNotifier {
     int historyLimit = 120,
     required String? token,
     String? greenhouseId,
+    String? deviceId,
   }) async {
     if (_isLoading && !force) return;
 
     if (token == null || token.isEmpty) {
       _errorMessage = 'Please sign in to view disease detection data.';
+      _latest = null;
+      _readings = <EdasSensorReading>[];
+      _latestPrediction = null;
+      notifyListeners();
+      return;
+    }
+
+    if (deviceId == null || deviceId.isEmpty) {
+      _errorMessage = 'Select a greenhouse and EDAS device to view readings.';
       _latest = null;
       _readings = <EdasSensorReading>[];
       _latestPrediction = null;
@@ -117,6 +136,7 @@ class EdasProvider extends ChangeNotifier {
           await _api.fetchLatestSensorData(
         token: token,
         greenhouseId: greenhouseId,
+        deviceId: deviceId,
       );
 
       if (latestSensorData != null) {
@@ -129,6 +149,7 @@ class EdasProvider extends ChangeNotifier {
           await _api.fetchLatestWithPrediction(
         token: token,
         greenhouseId: greenhouseId,
+        deviceId: deviceId,
       );
 
       if (latestWithPrediction != null) {
@@ -160,6 +181,7 @@ class EdasProvider extends ChangeNotifier {
       final List<EdasSensorReading> history = await _api.fetchHistory(
         token: token,
         greenhouseId: greenhouseId,
+        deviceId: deviceId,
         limit: historyLimit,
       );
       if (history.isNotEmpty) {
@@ -198,9 +220,13 @@ class EdasProvider extends ChangeNotifier {
     DateTime? startDate,
     DateTime? endDate,
     String? greenhouseId,
+    String? deviceId,
     int limit = 1000,
   }) async {
     if (token == null || token.isEmpty) {
+      return <EdasSensorReading>[];
+    }
+    if (deviceId == null || deviceId.isEmpty) {
       return <EdasSensorReading>[];
     }
     try {
@@ -223,6 +249,7 @@ class EdasProvider extends ChangeNotifier {
       final List<EdasSensorReading> history = await _api.fetchHistory(
         token: token,
         greenhouseId: greenhouseId == 'ALL' ? null : greenhouseId,
+        deviceId: deviceId,
         limit: fetchLimit,
         startDate: utcStartDate,
         endDate: utcEndDate,
@@ -285,6 +312,12 @@ class EdasProvider extends ChangeNotifier {
       if (greenhouseId != null && greenhouseId != 'ALL') {
         filtered = filtered
             .where((EdasSensorReading r) => r.greenhouseId == greenhouseId)
+            .toList();
+      }
+
+      if (deviceId.isNotEmpty) {
+        filtered = filtered
+            .where((EdasSensorReading r) => r.basestationId == deviceId)
             .toList();
       }
 
