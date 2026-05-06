@@ -12,6 +12,23 @@ class EdasApiService {
 
   final ApiService _apiService;
 
+  void _addScopeQueries(
+    Map<String, String> query, {
+    String? greenhouseId,
+    String? deviceId,
+  }) {
+    if (greenhouseId != null &&
+        greenhouseId.isNotEmpty &&
+        greenhouseId != 'ALL') {
+      query['greenhouseId'] = greenhouseId;
+    }
+    if (deviceId != null &&
+        deviceId.isNotEmpty &&
+        deviceId != 'ALL') {
+      query['device_id'] = deviceId;
+    }
+  }
+
   Map<String, dynamic>? _unwrapData(Map<String, dynamic>? body) {
     if (body == null) return null;
     final dynamic inner = body['data'];
@@ -26,13 +43,13 @@ class EdasApiService {
     required String token,
     int limit = 20,
     String? greenhouseId,
+    String? deviceId,
   }) async {
     try {
       final Map<String, String> query = <String, String>{
         'limit': '$limit',
-        if (greenhouseId != null && greenhouseId != 'ALL')
-          'greenhouseId': greenhouseId,
       };
+      _addScopeQueries(query, greenhouseId: greenhouseId, deviceId: deviceId);
 
       final http.Response response = await _apiService.get(
         '/edas-data/',
@@ -67,6 +84,7 @@ class EdasApiService {
     required String token,
     int limit = 100,
     String? greenhouseId,
+    String? deviceId,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -77,11 +95,10 @@ class EdasApiService {
 
     final Map<String, String> query = <String, String>{
       'limit': '$limit',
-      if (greenhouseId != null && greenhouseId != 'ALL')
-        'greenhouseId': greenhouseId,
       if (startDate != null) 'startDate': formatDate(startDate)!,
       if (endDate != null) 'endDate': formatDate(endDate)!,
     };
+    _addScopeQueries(query, greenhouseId: greenhouseId, deviceId: deviceId);
 
     final Uri uri = _apiService.uri('/edas-data/', query: query);
 
@@ -106,12 +123,11 @@ class EdasApiService {
   Future<EdasSensorReading?> fetchLatestSensorData({
     required String token,
     String? greenhouseId,
+    String? deviceId,
   }) async {
     try {
       final Map<String, String> query = <String, String>{};
-      if (greenhouseId != null && greenhouseId != 'ALL') {
-        query['greenhouseId'] = greenhouseId;
-      }
+      _addScopeQueries(query, greenhouseId: greenhouseId, deviceId: deviceId);
 
       final Uri latestUri =
           _apiService.uri('/edas-data/latest-sensor-data', query: query);
@@ -134,6 +150,7 @@ class EdasApiService {
         token: token,
         limit: 1,
         greenhouseId: greenhouseId,
+        deviceId: deviceId,
       );
 
       if (readings.isNotEmpty) {
@@ -149,11 +166,10 @@ class EdasApiService {
   Future<Map<String, dynamic>?> fetchLatestWithPrediction({
     required String token,
     String? greenhouseId,
+    String? deviceId,
   }) async {
     final Map<String, String> query = <String, String>{};
-    if (greenhouseId != null && greenhouseId != 'ALL') {
-      query['greenhouseId'] = greenhouseId;
-    }
+    _addScopeQueries(query, greenhouseId: greenhouseId, deviceId: deviceId);
 
     final Uri uri =
         _apiService.uri('/edas-data/latest-with-prediction', query: query);
